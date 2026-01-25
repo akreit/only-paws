@@ -1,5 +1,5 @@
-import prisma from '~/../server/utils/prisma'
-import type { LocationType } from '~/../app/types/location'
+import prisma from '~/server/utils/prisma'
+import type { LocationType } from '~/app/types/location'
 import type { Prisma } from '@prisma/client'
 
 type LocationWithRelations = Prisma.LocationGetPayload<{

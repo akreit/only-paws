@@ -1,0 +1,138 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id          String   @id @default(cuid())
+  clerkUserId String   @unique
+  email       String?
+  username    String?
+  bio         String?
+  avatarUrl   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  locations Location[]
+  reviews   Review[]
+  photos    Photo[]
+  comments  Comment[]
+  favorites Favorite[]
+}
+
+model Location {
+  id          String       @id @default(cuid())
+  name        String
+  type        LocationType
+  description String?
+  address     String
+  latitude    Float
+  longitude   Float
+  website     String?
+  phone       String?
+  hours       String?
+
+  leashRequired     Boolean?
+  breedRestrictions String?
+  offLeashArea      Boolean?
+  amenities         String?
+
+  createdBy   User   @relation(fields: [createdById], references: [id])
+  createdById String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  reviews   Review[]
+  photos    Photo[]
+  favorites Favorite[]
+
+  @@index([latitude, longitude])
+}
+
+model Review {
+  id      String  @id @default(cuid())
+  rating  Int
+  comment String?
+
+  location   Location @relation(fields: [locationId], references: [id])
+  locationId String
+
+  author   User   @relation(fields: [authorId], references: [id])
+  authorId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([locationId])
+  @@index([authorId])
+}
+
+model Photo {
+  id       String  @id @default(cuid())
+  url      String
+  caption  String?
+  publicId String
+
+  location   Location @relation(fields: [locationId], references: [id])
+  locationId String
+
+  uploader   User   @relation(fields: [uploaderId], references: [id])
+  uploaderId String
+
+  createdAt DateTime @default(now())
+
+  comments Comment[]
+
+  @@index([locationId])
+  @@index([uploaderId])
+}
+
+model Comment {
+  id   String @id @default(cuid())
+  text String
+
+  photo   Photo  @relation(fields: [photoId], references: [id])
+  photoId String
+
+  author   User   @relation(fields: [authorId], references: [id])
+  authorId String
+
+  createdAt DateTime @default(now())
+
+  @@index([photoId])
+  @@index([authorId])
+}
+
+model Favorite {
+  id String @id @default(cuid())
+
+  user   User   @relation(fields: [userId], references: [id])
+  userId String
+
+  location   Location @relation(fields: [locationId], references: [id])
+  locationId String
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, locationId])
+  @@index([userId])
+  @@index([locationId])
+}
+
+enum LocationType {
+  RESTAURANT
+  PARK
+  STORE
+  HOTEL
+  BEACH
+  CAFE
+  BAR
+  TRAINING_CENTER
+  GROOMER
+  VETERINARIAN
+  OTHER
+}

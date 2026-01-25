@@ -1,0 +1,69 @@
+{
+  "locations": [
+    {
+      "name": "Central Park Dog Run",
+      "type": "PARK",
+      "description": "Large off-leash area in the heart of the city. Water stations and waste bags provided.",
+      "address": "Central Park, New York, NY 10024",
+      "latitude": 40.7736,
+      "longitude": -73.9712,
+      "website": "https://www.centralparknyc.org",
+      "phone": "+1 212-310-6600",
+      "hours": "6:00 AM - 11:00 PM",
+      "leashRequired": false,
+      "offLeashArea": true,
+      "amenities": "[\"water\", \"waste_bags\", \"shaded_area\"]",
+      "createdByClerkId": "user_abc123"
+    },
+    {
+      "name": "Bark Avenue Cafe",
+      "type": "RESTAURANT",
+      "description": "Dog-friendly cafe with outdoor seating and a special treat menu for pups.",
+      "address": "123 5th Avenue, New York, NY 10001",
+      "latitude": 40.7549,
+      "longitude": -73.984,
+      "website": "https://barkavenuecafe.com",
+      "phone": "+1 212-555-0123",
+      "hours": "7:00 AM - 9:00 PM",
+      "leashRequired": true,
+      "offLeashArea": false,
+      "amenities": "[\"treats\", \"dog_menu\", \"patio\", \"water\"]",
+      "createdByClerkId": "user_abc123"
+    },
+    {
+      "name": "Paws & Relax Spa",
+      "type": "GROOMER",
+      "description": "Full-service dog grooming spa with organic products.",
+      "address": "456 Broadway, New York, NY 10012",
+      "latitude": 40.7198,
+      "longitude": -73.9973,
+      "website": "https://pawsandrelax.com",
+      "phone": "+1 212-555-0456",
+      "hours": "9:00 AM - 7:00 PM",
+      "leashRequired": true,
+      "offLeashArea": false,
+      "amenities": "[\"grooming\", \"treats\"]",
+      "createdByClerkId": "user_def456"
+    }
+  ],
+  "reviews": [
+    {
+      "rating": 5,
+      "comment": "Amazing place for my pup! Love the off-leash area.",
+      "locationId": "location_park_001",
+      "authorClerkId": "user_abc123"
+    },
+    {
+      "rating": 4,
+      "comment": "Great coffee and friendly staff, but the outdoor seating is noisy.",
+      "locationId": "location_cafe_001",
+      "authorClerkId": "user_def456"
+    },
+    {
+      "rating": 5,
+      "comment": "Best groomers in the city! My dog always comes out looking great.",
+      "locationId": "location_groomer_001",
+      "authorClerkId": "user_abc123"
+    }
+  ]
+}

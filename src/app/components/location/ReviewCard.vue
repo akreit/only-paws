@@ -65,7 +65,7 @@ const emit = defineEmits<{
   delete: []
 }>()
 
-const { user } = useAuth()
+const { user } = useAuthSync()
 const { deleteReview } = useReviews()
 
 const canDelete = computed(() => {

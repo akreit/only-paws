@@ -13,7 +13,7 @@ export function createMockLocation(overrides: Partial<Location> = {}): Location 
     phone: '+1 555-123-4567',
     hours: '6:00 AM - 10:00 PM',
     leashRequired: false,
-    breedRestrictions: null,
+    breedRestrictions: undefined,
     offLeashArea: true,
     amenities: JSON.stringify(['Water bowls', 'Waste bags']),
     createdById: 'test-user-1',

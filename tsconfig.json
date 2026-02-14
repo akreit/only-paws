@@ -9,7 +9,7 @@
     "moduleResolution": "bundler",
     "baseUrl": ".",
     "paths": {
-      "~/*": ["./src/app/*"],
+      "~/*": ["./src/app/*", "./src/server/*", "./src/*"],
       "@/*": ["./src/app/*"],
       "~~/*": ["./*"],
       "@@/*": ["./*"]

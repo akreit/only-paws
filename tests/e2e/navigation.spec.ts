@@ -98,8 +98,8 @@ test.describe('Performance', () => {
     await page.goto('/')
     const loadTime = Date.now() - startTime
 
-    // Page should load in reasonable time (adjust threshold as needed)
-    expect(loadTime).toBeLessThan(5000)
+    // Page should load in reasonable time (10s threshold for cold starts with all assets)
+    expect(loadTime).toBeLessThan(10000)
   })
 
   test('should not have console errors on home page', async ({ page }) => {

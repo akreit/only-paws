@@ -1,5 +1,11 @@
 # coding Guidelines for Agents
 
+## Core Principles
+
+- Keep code concise and highly modular / composable
+- We care deeply about (human) maintainability
+- Never execute any write commands outside the project directory
+
 ## Planning Before Implementation
 
 Never jump straight into coding. Always:

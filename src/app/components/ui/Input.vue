@@ -16,7 +16,7 @@
         @input="handleInput"
         @blur="emit('blur')"
         @focus="emit('focus')"
-      >
+      />
       <div
         v-if="error"
         class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3"

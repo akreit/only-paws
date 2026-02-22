@@ -10,7 +10,7 @@
         :src="location.photos[0].url"
         :alt="location.name"
         class="h-full w-full object-cover"
-      >
+      />
       <div v-else class="flex h-full w-full items-center justify-center text-6xl">
         {{ LOCATION_TYPE_ICONS[location.type] }}
       </div>

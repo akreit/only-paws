@@ -7,7 +7,7 @@
           :src="review.author.avatarUrl"
           :alt="review.author.username || 'User'"
           class="h-10 w-10 rounded-full"
-        >
+        />
         <div v-else class="flex h-10 w-10 items-center justify-center rounded-full bg-gray-200">
           <svg class="h-6 w-6 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
             <path

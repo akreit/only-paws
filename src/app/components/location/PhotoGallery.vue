@@ -10,7 +10,7 @@
         accept="image/*"
         class="hidden"
         @change="handleFileSelect"
-      >
+      />
       <Button
         variant="outline"
         :disabled="uploading"
@@ -50,7 +50,7 @@
           :src="photo.url"
           :alt="photo.caption || 'Location photo'"
           class="h-full w-full object-cover"
-        >
+        />
       </div>
     </div>
 
@@ -79,7 +79,7 @@
           :src="selectedPhoto.url"
           :alt="selectedPhoto.caption || 'Location photo'"
           class="w-full rounded-lg"
-        >
+        />
         <div v-if="selectedPhoto.caption" class="text-gray-700">
           {{ selectedPhoto.caption }}
         </div>
@@ -90,7 +90,7 @@
               :src="selectedPhoto.uploader.avatarUrl"
               :alt="selectedPhoto.uploader.username || 'User'"
               class="h-6 w-6 rounded-full"
-            >
+            />
             <span>{{ selectedPhoto.uploader?.username || 'Anonymous' }}</span>
           </div>
           <span>{{ formatRelativeTime(selectedPhoto.createdAt) }}</span>

@@ -37,7 +37,7 @@
                 :src="user.imageUrl"
                 :alt="user.username || 'User'"
                 class="h-8 w-8 rounded-full border-2 border-gray-200"
-              >
+              />
               <span class="font-medium">{{ user?.username || user?.firstName || 'Profile' }}</span>
             </NuxtLink>
             <SignOutButton>

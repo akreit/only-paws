@@ -34,7 +34,7 @@
             :src="user.imageUrl"
             :alt="user.username || 'User'"
             class="h-24 w-24 rounded-full border-4 border-gray-200"
-          >
+          />
           <div
             v-else
             class="flex h-24 w-24 items-center justify-center rounded-full border-4 border-gray-200 bg-gray-200"

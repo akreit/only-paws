@@ -10,7 +10,7 @@ export default defineNuxtConfig({
     }
   },
   srcDir: 'src/app',
-  serverDir: '../server',
+  serverDir: 'src/server',
 
   components: [
     {

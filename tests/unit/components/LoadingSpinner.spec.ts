@@ -45,4 +45,3 @@ describe('LoadingSpinner Component', () => {
     expect(wrapper.classes()).toContain('inset-0')
   })
 })
-

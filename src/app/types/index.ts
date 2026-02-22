@@ -4,4 +4,3 @@ export * from './comment'
 export * from './photo'
 export * from './review'
 export * from './ui'
-

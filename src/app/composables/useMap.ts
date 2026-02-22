@@ -13,15 +13,11 @@ export function useMap() {
 
     // Configure the loader with options
     setOptions({
-      key: config.public.googleMapsApiKey as string
+      key: config.public.googleMapsApiKey as string,
     })
 
     // Import required libraries
-    await Promise.all([
-      importLibrary('places'),
-      importLibrary('geometry'),
-      importLibrary('maps')
-    ])
+    await Promise.all([importLibrary('places'), importLibrary('geometry'), importLibrary('maps')])
 
     isLoaded = true
     return window.google.maps
@@ -124,4 +120,3 @@ export function useMap() {
     mapStore,
   }
 }
-

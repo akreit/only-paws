@@ -22,4 +22,3 @@ export interface UpdateReviewInput {
   rating?: number
   comment?: string
 }
-

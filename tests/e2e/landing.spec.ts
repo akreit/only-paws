@@ -7,14 +7,17 @@ test.describe('Landing Page', () => {
     // Check for hero heading
     await expect(page.getByRole('heading', { name: /discover dog-friendly places/i })).toBeVisible()
 
-    // Check for CTA buttons
-    await expect(page.getByRole('link', { name: /explore map/i })).toBeVisible()
+    // Check for CTA buttons (use first since there are multiple "Explore Map" links)
+    await expect(page.getByRole('link', { name: /explore map/i }).first()).toBeVisible()
   })
 
   test('should navigate to map page', async ({ page }) => {
     await page.goto('/')
 
-    await page.getByRole('link', { name: /explore map/i }).first().click()
+    await page
+      .getByRole('link', { name: /explore map/i })
+      .first()
+      .click()
 
     await expect(page).toHaveURL('/map')
   })
@@ -36,11 +39,11 @@ test.describe('Landing Page', () => {
   test('should have navigation header', async ({ page }) => {
     await page.goto('/')
 
-    // Check for logo/brand
-    await expect(page.getByText('Only Paws')).toBeVisible()
+    // Check for logo/brand (use first since "Only Paws" appears multiple times)
+    await expect(page.getByText('Only Paws').first()).toBeVisible()
 
-    // Check for navigation links
-    await expect(page.getByRole('link', { name: /explore map/i })).toBeVisible()
+    // Check for navigation links (use first since link appears in header, hero, and footer)
+    await expect(page.getByRole('link', { name: /explore map/i }).first()).toBeVisible()
   })
 
   test('should have footer', async ({ page }) => {
@@ -54,13 +57,12 @@ test.describe('Landing Page', () => {
     await page.setViewportSize({ width: 375, height: 667 })
     await page.goto('/')
 
-    await expect(page.getByText('Only Paws')).toBeVisible()
+    await expect(page.getByText('Only Paws').first()).toBeVisible()
 
     // Test desktop viewport
     await page.setViewportSize({ width: 1920, height: 1080 })
     await page.goto('/')
 
-    await expect(page.getByText('Only Paws')).toBeVisible()
+    await expect(page.getByText('Only Paws').first()).toBeVisible()
   })
 })
-

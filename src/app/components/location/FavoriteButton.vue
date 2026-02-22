@@ -1,15 +1,6 @@
 <template>
-  <button
-    :disabled="loading"
-    :class="buttonClasses"
-    @click="handleClick"
-  >
-    <svg
-      :class="iconClasses"
-      fill="none"
-      stroke="currentColor"
-      viewBox="0 0 24 24"
-    >
+  <button :disabled="loading" :class="buttonClasses" @click="handleClick">
+    <svg :class="iconClasses" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path
         stroke-linecap="round"
         stroke-linejoin="round"
@@ -40,7 +31,8 @@ const { isFavorite: checkIsFavorite, toggleFavorite, loading } = useFavorites()
 const isFavorite = computed(() => checkIsFavorite(props.locationId))
 
 const buttonClasses = computed(() => {
-  const base = 'inline-flex items-center gap-2 font-medium rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50'
+  const base =
+    'inline-flex items-center gap-2 font-medium rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50'
   const sizes = {
     sm: 'p-1.5',
     md: 'p-2',
@@ -67,4 +59,3 @@ async function handleClick() {
   await toggleFavorite(props.locationId)
 }
 </script>
-

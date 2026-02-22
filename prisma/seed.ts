@@ -1,6 +1,8 @@
 import { PrismaClient, LocationType } from '@prisma/client'
+import { PrismaPg } from '@prisma/adapter-pg'
 
-const prisma = new PrismaClient()
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL })
+const prisma = new PrismaClient({ adapter })
 
 async function main() {
   console.log('🌱 Starting database seed...')
@@ -23,7 +25,8 @@ async function main() {
     {
       name: 'Central Park Dog Run',
       type: LocationType.PARK,
-      description: 'Large off-leash area in the heart of the city. Water stations and waste bags provided.',
+      description:
+        'Large off-leash area in the heart of the city. Water stations and waste bags provided.',
       address: 'Central Park, New York, NY 10024',
       latitude: 40.7736,
       longitude: -73.9712,
@@ -41,7 +44,7 @@ async function main() {
       description: 'Dog-friendly cafe with outdoor seating and a special treat menu for pups.',
       address: '123 5th Avenue, New York, NY 10001',
       latitude: 40.7549,
-      longitude: -73.9840,
+      longitude: -73.984,
       website: 'https://barkavenuecafe.com',
       phone: '+1 212-555-0123',
       hours: '7:00 AM - 9:00 PM',
@@ -112,4 +115,3 @@ main()
   .finally(async () => {
     await prisma.$disconnect()
   })
-

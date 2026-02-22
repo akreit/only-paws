@@ -1,8 +1,8 @@
 <template>
-  <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <div v-if="error" class="text-center py-12">
+  <div class="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
+    <div v-if="error" class="py-12 text-center">
       <svg
-        class="h-16 w-16 mx-auto mb-4 text-red-500"
+        class="mx-auto mb-4 h-16 w-16 text-red-500"
         fill="none"
         stroke="currentColor"
         viewBox="0 0 24 24"
@@ -14,7 +14,7 @@
           d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
         />
       </svg>
-      <p class="text-xl text-gray-700 mb-4">{{ error }}</p>
+      <p class="mb-4 text-xl text-gray-700">{{ error }}</p>
       <NuxtLink to="/map">
         <Button variant="primary">Back to Map</Button>
       </NuxtLink>
@@ -26,15 +26,10 @@
           <h1 class="text-3xl font-bold text-gray-900">{{ location.name }}</h1>
         </div>
         <button
-          class="inline-flex items-center text-gray-600 hover:text-gray-900 transition-colors"
+          class="inline-flex items-center text-gray-600 transition-colors hover:text-gray-900"
           @click="$router.back()"
         >
-          <svg
-            class="h-5 w-5 mr-1"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
+          <svg class="mr-1 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
               stroke-linecap="round"
               stroke-linejoin="round"
@@ -47,31 +42,23 @@
       </div>
 
       <!-- Location Info -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div class="lg:col-span-2 space-y-6">
+      <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div class="space-y-6 lg:col-span-2">
           <LocationInfo :location="location" />
           <DogFeatures :location="location" />
         </div>
         <div>
-          <FavoriteButton
-            v-if="isSignedIn"
-            size="lg"
-            show-label
-            :location-id="location.id"
-          />
+          <FavoriteButton v-if="isSignedIn" size="lg" show-label :location-id="location.id" />
         </div>
       </div>
 
       <!-- Reviews Section -->
-      <div class="bg-white rounded-lg shadow-md p-6">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">Reviews</h3>
+      <div class="rounded-lg bg-white p-6 shadow-md">
+        <h3 class="mb-4 text-lg font-semibold text-gray-900">Reviews</h3>
         <div class="space-y-6">
           <!-- Review Form -->
           <div v-if="isSignedIn" class="mb-6">
-            <ReviewForm
-              :location-id="location.id"
-              @submitted="refreshLocation"
-            />
+            <ReviewForm :location-id="location.id" @submitted="refreshLocation" />
           </div>
 
           <!-- Reviews List -->
@@ -83,9 +70,9 @@
               @delete="refreshLocation"
             />
           </div>
-          <div v-else class="text-center py-8 text-gray-500">
+          <div v-else class="py-8 text-center text-gray-500">
             <svg
-              class="h-12 w-12 mx-auto mb-3 text-gray-400"
+              class="mx-auto mb-3 h-12 w-12 text-gray-400"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -144,7 +131,8 @@ async function refreshLocation() {
 }
 
 useHead({
-  title: computed(() => location.value ? `${location.value.name} - Only Paws` : 'Location - Only Paws'),
+  title: computed(() =>
+    location.value ? `${location.value.name} - Only Paws` : 'Location - Only Paws'
+  ),
 })
 </script>
-

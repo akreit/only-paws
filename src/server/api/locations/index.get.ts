@@ -1,6 +1,4 @@
-import prisma from '~/../server/utils/prisma'
-import type { LocationType } from '~/../app/types/location'
-import type { Prisma } from '@prisma/client'
+import type { Prisma, LocationType } from '@prisma/client'
 
 type LocationWithRelations = Prisma.LocationGetPayload<{
   include: {
@@ -89,7 +87,7 @@ export default defineEventHandler(async (event) => {
     `
   }
 
-  const locations = await prisma.location.findMany(filters) as LocationWithRelations[]
+  const locations = (await prisma.location.findMany(filters)) as LocationWithRelations[]
 
   // Calculate average rating for each location
   return locations.map((location) => {
@@ -105,4 +103,3 @@ export default defineEventHandler(async (event) => {
     }
   })
 })
-

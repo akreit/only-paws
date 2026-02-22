@@ -99,7 +99,7 @@
             v-model="form.leashRequired"
             type="checkbox"
             class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-          >
+          />
           <label for="leashRequired" class="text-sm font-medium text-gray-700">
             Leash Required
           </label>
@@ -112,7 +112,7 @@
             v-model="form.offLeashArea"
             type="checkbox"
             class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-          >
+          />
           <label for="offLeashArea" class="text-sm font-medium text-gray-700">
             Has Off-Leash Area
           </label>
@@ -142,7 +142,7 @@
                 :value="amenity"
                 type="checkbox"
                 class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-              >
+              />
               <label :for="`amenity-${amenity}`" class="text-sm text-gray-700">
                 {{ amenity }}
               </label>

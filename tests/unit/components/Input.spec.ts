@@ -121,4 +121,3 @@ describe('Input Component', () => {
     })
   })
 })
-

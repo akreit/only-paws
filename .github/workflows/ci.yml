@@ -8,6 +8,7 @@ on:
 
 env:
   NODE_VERSION: '22.x'
+  CLERK_PUBLISHABLE_KEY: ${{ secrets.CLERK_PUBLISHABLE_KEY }}
 
 jobs:
   lint:

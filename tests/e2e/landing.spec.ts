@@ -14,7 +14,10 @@ test.describe('Landing Page', () => {
   test('should navigate to map page', async ({ page }) => {
     await page.goto('/')
 
-    await page.getByRole('link', { name: /explore map/i }).first().click()
+    await page
+      .getByRole('link', { name: /explore map/i })
+      .first()
+      .click()
 
     await expect(page).toHaveURL('/map')
   })
@@ -63,4 +66,3 @@ test.describe('Landing Page', () => {
     await expect(page.getByText('Only Paws').first()).toBeVisible()
   })
 })
-

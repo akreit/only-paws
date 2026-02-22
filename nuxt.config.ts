@@ -6,8 +6,8 @@ export default defineNuxtConfig({
     enabled: true,
 
     timeline: {
-      enabled: true
-    }
+      enabled: true,
+    },
   },
   srcDir: 'src/app',
   serverDir: 'src/server',
@@ -15,16 +15,11 @@ export default defineNuxtConfig({
   components: [
     {
       path: '~/components',
-      pathPrefix: false
-    }
+      pathPrefix: false,
+    },
   ],
 
-  modules: [
-    '@pinia/nuxt',
-    '@nuxtjs/tailwindcss',
-    '@clerk/nuxt',
-    '@nuxt/eslint'
-  ],
+  modules: ['@pinia/nuxt', '@nuxtjs/tailwindcss', '@clerk/nuxt', '@nuxt/eslint'],
 
   runtimeConfig: {
     public: {
@@ -37,33 +32,33 @@ export default defineNuxtConfig({
       googleMapsDefaultLng: process.env.GOOGLE_MAPS_DEFAULT_LNG || '-74.0060',
       googleMapsDefaultZoom: Number(process.env.GOOGLE_MAPS_DEFAULT_ZOOM) || 13,
       cloudinaryCloudName: process.env.CLOUDINARY_CLOUD_NAME,
-      uploadPreset: process.env.CLOUDINARY_UPLOAD_PRESET || 'default'
+      uploadPreset: process.env.CLOUDINARY_UPLOAD_PRESET || 'default',
     },
     private: {
       clerkSecretKey: process.env.CLERK_SECRET_KEY,
       databaseUrl: process.env.DATABASE_URL,
       cloudinaryApiKey: process.env.CLOUDINARY_API_KEY,
-      cloudinaryApiSecret: process.env.CLOUDINARY_API_SECRET
-    }
+      cloudinaryApiSecret: process.env.CLOUDINARY_API_SECRET,
+    },
   },
 
   typescript: {
     strict: false,
-    typeCheck: false
+    typeCheck: false,
   },
 
   // Configure app to suppress Vue Router warnings for API routes
   app: {
     head: {
-      title: 'Only Paws'
-    }
+      title: 'Only Paws',
+    },
   },
 
   css: ['assets/styles/main.css'],
 
   vite: {
     optimizeDeps: {
-      include: ['@googlemaps/js-api-loader']
-    }
-  }
+      include: ['@googlemaps/js-api-loader'],
+    },
+  },
 })

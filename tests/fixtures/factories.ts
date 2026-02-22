@@ -62,4 +62,3 @@ export function createMockPhoto(overrides = {}) {
     ...overrides,
   }
 }
-

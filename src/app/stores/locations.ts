@@ -89,4 +89,3 @@ export const useLocationsStore = defineStore('locations', () => {
     setError,
   }
 })
-

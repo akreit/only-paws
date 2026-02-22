@@ -7,11 +7,17 @@ test.describe('Navigation', () => {
     await expect(page).toHaveURL('/')
 
     // Navigate to map
-    await page.getByRole('link', { name: /explore map/i }).first().click()
+    await page
+      .getByRole('link', { name: /explore map/i })
+      .first()
+      .click()
     await expect(page).toHaveURL('/map')
 
     // Navigate back to home
-    await page.getByRole('link', { name: /only paws/i }).first().click()
+    await page
+      .getByRole('link', { name: /only paws/i })
+      .first()
+      .click()
     await expect(page).toHaveURL('/')
   })
 
@@ -47,7 +53,10 @@ test.describe('Navigation', () => {
 
   test('should work with browser back/forward', async ({ page }) => {
     await page.goto('/')
-    await page.getByRole('link', { name: /explore map/i }).first().click()
+    await page
+      .getByRole('link', { name: /explore map/i })
+      .first()
+      .click()
     await expect(page).toHaveURL('/map')
 
     await page.goBack()
@@ -121,4 +130,3 @@ test.describe('Performance', () => {
     expect(significantErrors).toHaveLength(0)
   })
 })
-

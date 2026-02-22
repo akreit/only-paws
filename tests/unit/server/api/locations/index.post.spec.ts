@@ -75,7 +75,7 @@ describe('POST /api/locations', () => {
           address: '123 Main St',
           createdById: 'user-1',
         }),
-      }),
+      })
     )
     expect(result).toEqual(created)
   })

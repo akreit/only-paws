@@ -19,7 +19,10 @@ test.describe('Map Page', () => {
     await page.goto('/map')
 
     // Check for some common location type filters (check individually to avoid strict mode)
-    const hasRestaurant = await page.getByText(/restaurant/i).first().isVisible()
+    const hasRestaurant = await page
+      .getByText(/restaurant/i)
+      .first()
+      .isVisible()
     const hasPark = await page.getByText(/park/i).first().isVisible()
 
     // At least one filter should be visible
@@ -61,9 +64,8 @@ test.describe('Map Page', () => {
       await page.goto('/map')
 
       // Check for add location button
-     page.getByRole('button', { name: /add location/i })
+      page.getByRole('button', { name: /add location/i })
       // Visibility depends on auth state
     })
   })
 })
-

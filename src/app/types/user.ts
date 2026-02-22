@@ -14,4 +14,3 @@ export interface UpdateUserInput {
   bio?: string
   avatarUrl?: string
 }
-

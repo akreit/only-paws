@@ -1,25 +1,25 @@
 <template>
-  <header class="bg-white shadow-sm sticky top-0 z-40">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="flex justify-between items-center h-16">
+  <header class="sticky top-0 z-40 bg-white shadow-sm">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div class="flex h-16 items-center justify-between">
         <!-- Logo -->
-        <NuxtLink to="/" class="flex items-center gap-2 hover:opacity-80 transition-opacity">
+        <NuxtLink to="/" class="flex items-center gap-2 transition-opacity hover:opacity-80">
           <span class="text-3xl">🐾</span>
           <span class="text-xl font-bold text-gray-900">Only Paws</span>
         </NuxtLink>
 
         <!-- Navigation -->
-        <nav class="hidden md:flex items-center gap-6">
+        <nav class="hidden items-center gap-6 md:flex">
           <NuxtLink
             to="/map"
-            class="text-gray-700 hover:text-blue-600 font-medium transition-colors"
+            class="font-medium text-gray-700 transition-colors hover:text-blue-600"
           >
             Explore Map
           </NuxtLink>
           <NuxtLink
             v-if="isSignedIn"
             to="/profile"
-            class="text-gray-700 hover:text-blue-600 font-medium transition-colors"
+            class="font-medium text-gray-700 transition-colors hover:text-blue-600"
           >
             My Profile
           </NuxtLink>
@@ -30,7 +30,7 @@
           <template v-if="isSignedIn">
             <NuxtLink
               to="/profile"
-              class="hidden sm:flex items-center gap-2 text-gray-700 hover:text-blue-600 transition-colors"
+              class="hidden items-center gap-2 text-gray-700 transition-colors hover:text-blue-600 sm:flex"
             >
               <img
                 v-if="user?.imageUrl"
@@ -56,23 +56,35 @@
 
         <!-- Mobile menu button -->
         <button
-          class="md:hidden p-2 rounded-lg text-gray-700 hover:bg-gray-100"
+          class="rounded-lg p-2 text-gray-700 hover:bg-gray-100 md:hidden"
           @click="mobileMenuOpen = !mobileMenuOpen"
         >
           <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path v-if="!mobileMenuOpen" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-            <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            <path
+              v-if="!mobileMenuOpen"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M4 6h16M4 12h16M4 18h16"
+            />
+            <path
+              v-else
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M6 18L18 6M6 6l12 12"
+            />
           </svg>
         </button>
       </div>
 
       <!-- Mobile menu -->
       <Transition name="slide">
-        <div v-if="mobileMenuOpen" class="md:hidden py-4 border-t border-gray-200">
+        <div v-if="mobileMenuOpen" class="border-t border-gray-200 py-4 md:hidden">
           <nav class="flex flex-col gap-3">
             <NuxtLink
               to="/map"
-              class="text-gray-700 hover:text-blue-600 font-medium px-2 py-1"
+              class="px-2 py-1 font-medium text-gray-700 hover:text-blue-600"
               @click="mobileMenuOpen = false"
             >
               Explore Map
@@ -80,7 +92,7 @@
             <NuxtLink
               v-if="isSignedIn"
               to="/profile"
-              class="text-gray-700 hover:text-blue-600 font-medium px-2 py-1"
+              class="px-2 py-1 font-medium text-gray-700 hover:text-blue-600"
               @click="mobileMenuOpen = false"
             >
               My Profile

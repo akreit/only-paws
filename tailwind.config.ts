@@ -5,7 +5,7 @@ export default {
     './pages/**/*.vue',
     './plugins/**/*.{js,ts}',
     './app/**/*.{js,vue,ts}',
-    './error.vue'
+    './error.vue',
   ],
   theme: {
     extend: {
@@ -21,10 +21,10 @@ export default {
           700: '#b14a0e',
           800: '#8f3b14',
           900: '#753313',
-          950: '#3d1a08'
-        }
-      }
-    }
+          950: '#3d1a08',
+        },
+      },
+    },
   },
-  plugins: []
+  plugins: [],
 }

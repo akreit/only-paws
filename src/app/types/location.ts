@@ -70,4 +70,3 @@ export interface LocationFilters {
   longitude?: number
   radiusKm?: number
 }
-

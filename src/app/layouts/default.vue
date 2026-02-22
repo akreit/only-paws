@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen flex flex-col">
+  <div class="flex min-h-screen flex-col">
     <AppHeader />
     <main class="flex-1">
       <slot />
@@ -12,4 +12,3 @@
 <script setup lang="ts">
 // Components will be auto-imported
 </script>
-

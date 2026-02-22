@@ -87,7 +87,7 @@ export default defineEventHandler(async (event) => {
     `
   }
 
-  const locations = await prisma.location.findMany(filters) as LocationWithRelations[]
+  const locations = (await prisma.location.findMany(filters)) as LocationWithRelations[]
 
   // Calculate average rating for each location
   return locations.map((location) => {
@@ -103,4 +103,3 @@ export default defineEventHandler(async (event) => {
     }
   })
 })
-

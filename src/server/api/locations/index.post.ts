@@ -14,7 +14,21 @@ export default defineEventHandler(async (event) => {
   }
 
   const body = await readBody(event)
-  const { name, type, description, address, latitude, longitude, website, phone, hours, leashRequired, breedRestrictions, offLeashArea, amenities } = body
+  const {
+    name,
+    type,
+    description,
+    address,
+    latitude,
+    longitude,
+    website,
+    phone,
+    hours,
+    leashRequired,
+    breedRestrictions,
+    offLeashArea,
+    amenities,
+  } = body
 
   // Validate required fields
   if (!name || !type || !address || latitude === undefined || longitude === undefined) {
@@ -61,4 +75,3 @@ export default defineEventHandler(async (event) => {
 
   return location
 })
-

@@ -105,4 +105,3 @@ export function useLocations() {
     clearFilters: locationsStore.clearFilters,
   }
 }
-

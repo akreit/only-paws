@@ -13,4 +13,3 @@ export interface CreateCommentInput {
   text: string
   photoId: string
 }
-

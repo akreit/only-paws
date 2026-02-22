@@ -41,4 +41,3 @@ export interface ValidationError {
 export function createValidationError(field: string, message: string): ValidationError {
   return { field, message }
 }
-

@@ -41,9 +41,7 @@ describe('GET /api/locations', () => {
   })
 
   it('returns averageRating 0 when no reviews', async () => {
-    mocks.prisma.location.findMany.mockResolvedValue([
-      { id: '1', name: 'Park', reviews: [] },
-    ])
+    mocks.prisma.location.findMany.mockResolvedValue([{ id: '1', name: 'Park', reviews: [] }])
 
     const result = await handler(createMockEvent())
 

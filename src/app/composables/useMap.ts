@@ -40,7 +40,7 @@ export function useMap() {
     })
 
     // Surface API key auth errors (referrer restrictions, billing, etc.)
-    window.gm_authFailure = () => {
+    ;(window as Window & { gm_authFailure?: () => void }).gm_authFailure = () => {
       console.error(
         '[Maps] Authentication failed — check API key referrer restrictions and billing'
       )

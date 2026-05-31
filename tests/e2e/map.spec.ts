@@ -5,7 +5,9 @@ test.describe('Map Page', () => {
     await page.goto('/map')
 
     // Map container should be present
-    await expect(page.locator('[id*="map"]').or(page.locator('.relative.h-full'))).toBeVisible()
+    await expect(
+      page.locator('[data-testid="map-container"]').or(page.locator('.relative.overflow-hidden'))
+    ).toBeVisible()
   })
 
   test('should display search input', async ({ page }) => {

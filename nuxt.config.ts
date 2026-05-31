@@ -28,9 +28,7 @@ export default defineNuxtConfig({
       clerkSignInFallbackRedirectUrl: '/',
       clerkSignUpFallbackRedirectUrl: '/',
       googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY,
-      googleMapsDefaultLat: process.env.GOOGLE_MAPS_DEFAULT_LAT || '40.7128',
-      googleMapsDefaultLng: process.env.GOOGLE_MAPS_DEFAULT_LNG || '-74.0060',
-      googleMapsDefaultZoom: Number(process.env.GOOGLE_MAPS_DEFAULT_ZOOM) || 13,
+
       cloudinaryCloudName: process.env.CLOUDINARY_CLOUD_NAME,
       uploadPreset: process.env.CLOUDINARY_UPLOAD_PRESET || 'default',
     },

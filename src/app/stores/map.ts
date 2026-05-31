@@ -2,13 +2,8 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
 export const useMapStore = defineStore('map', () => {
-  const config = useRuntimeConfig()
-
-  const center = ref({
-    lat: Number(config.public.googleMapsDefaultLat),
-    lng: Number(config.public.googleMapsDefaultLng),
-  })
-  const zoom = ref(Number(config.public.googleMapsDefaultZoom))
+  const center = ref<{ lat: number; lng: number } | null>(null)
+  const zoom = ref(13)
   const bounds = ref<google.maps.LatLngBounds | null>(null)
   const mapInstance = ref<google.maps.Map | null>(null)
 

@@ -1,67 +1,65 @@
 <template>
-  <div class="h-[calc(100vh-4rem)]">
-    <div class="relative h-full">
-      <!-- Map Container -->
-      <div ref="mapContainer" class="absolute inset-0" />
+  <div class="relative h-[calc(100vh-4rem)] overflow-hidden">
+    <!-- Map Container -->
+    <div ref="mapContainer" class="h-full w-full" />
 
-      <!-- Controls Overlay -->
-      <div class="absolute left-4 right-4 top-4 z-10 flex flex-col gap-4 sm:flex-row">
-        <!-- Search & Filters -->
-        <div class="max-w-md flex-1 rounded-lg bg-white p-4 shadow-lg">
-          <Input
-            v-model="searchQuery"
-            type="text"
-            placeholder="Search locations..."
-            @input="handleSearch"
-          />
+    <!-- Controls Overlay -->
+    <div class="absolute left-4 right-4 top-4 z-10 flex flex-col gap-4 sm:flex-row">
+      <!-- Search & Filters -->
+      <div class="max-w-md flex-1 rounded-lg bg-white p-4 shadow-lg">
+        <Input
+          v-model="searchQuery"
+          type="text"
+          placeholder="Search locations..."
+          @input="handleSearch"
+        />
 
-          <div class="mt-3 flex flex-wrap gap-2">
-            <button
-              v-for="type in locationTypes"
-              :key="type.value"
-              :class="[
-                'rounded-full px-3 py-1.5 text-sm font-medium transition-colors',
-                selectedType === type.value
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200',
-              ]"
-              @click="toggleFilter(type.value)"
-            >
-              {{ type.icon }} {{ type.label }}
-            </button>
-          </div>
-        </div>
-
-        <!-- Add Location Button -->
-        <div v-if="isSignedIn" class="flex-shrink-0">
-          <Button variant="primary" @click="showAddModal = true">
-            <svg class="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M12 4v16m8-8H4"
-              />
-            </svg>
-            Add Location
-          </Button>
+        <div class="mt-3 flex flex-wrap gap-2">
+          <button
+            v-for="type in locationTypes"
+            :key="type.value"
+            :class="[
+              'rounded-full px-3 py-1.5 text-sm font-medium transition-colors',
+              selectedType === type.value
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200',
+            ]"
+            @click="toggleFilter(type.value)"
+          >
+            {{ type.icon }} {{ type.label }}
+          </button>
         </div>
       </div>
 
-      <!-- Loading Indicator -->
-      <div v-if="loading" class="absolute left-1/2 top-20 z-10 -translate-x-1/2 transform">
-        <div class="flex items-center gap-2 rounded-lg bg-white px-4 py-2 shadow-lg">
-          <LoadingSpinner size="sm" />
-          <span class="text-sm text-gray-700">Loading locations...</span>
-        </div>
+      <!-- Add Location Button -->
+      <div v-if="isSignedIn" class="flex-shrink-0">
+        <Button variant="primary" @click="showAddModal = true">
+          <svg class="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 4v16m8-8H4"
+            />
+          </svg>
+          Add Location
+        </Button>
       </div>
     </div>
 
-    <!-- Add Location Modal -->
-    <Modal v-model="showAddModal" title="Add New Location" size="lg">
-      <AddLocationForm @submitted="handleLocationAdded" />
-    </Modal>
+    <!-- Loading Indicator -->
+    <div v-if="loading" class="absolute left-1/2 top-20 z-10 -translate-x-1/2 transform">
+      <div class="flex items-center gap-2 rounded-lg bg-white px-4 py-2 shadow-lg">
+        <LoadingSpinner size="sm" />
+        <span class="text-sm text-gray-700">Loading locations...</span>
+      </div>
+    </div>
   </div>
+
+  <!-- Add Location Modal -->
+  <Modal v-model="showAddModal" title="Add New Location" size="lg">
+    <AddLocationForm @submitted="handleLocationAdded" />
+  </Modal>
 </template>
 
 <script setup lang="ts">

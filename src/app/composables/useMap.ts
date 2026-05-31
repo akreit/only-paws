@@ -11,13 +11,14 @@ export function useMap() {
       return window.google.maps
     }
 
-    // Configure the loader with options
-    setOptions({
-      key: config.public.googleMapsApiKey as string,
-    })
+    setOptions({ key: config.public.googleMapsApiKey as string })
 
-    // Import required libraries
-    await Promise.all([importLibrary('places'), importLibrary('geometry'), importLibrary('maps')])
+    try {
+      await Promise.all([importLibrary('places'), importLibrary('geometry'), importLibrary('maps')])
+    } catch (err) {
+      console.error('[Maps] Failed to import libraries:', err)
+      throw err
+    }
 
     isLoaded = true
     return window.google.maps
@@ -26,18 +27,27 @@ export function useMap() {
   async function initializeMap(element: HTMLElement): Promise<google.maps.Map> {
     await loadGoogleMaps()
 
+    const center = { lat: mapStore.center.lat, lng: mapStore.center.lng }
+    const zoom = mapStore.zoom
+
     const map = new google.maps.Map(element, {
-      center: mapStore.center,
-      zoom: mapStore.zoom,
+      center,
+      zoom,
       mapTypeControl: false,
       streetViewControl: false,
       fullscreenControl: true,
       zoomControl: true,
     })
 
+    // Surface API key auth errors (referrer restrictions, billing, etc.)
+    window.gm_authFailure = () => {
+      console.error(
+        '[Maps] Authentication failed — check API key referrer restrictions and billing'
+      )
+    }
+
     mapStore.setMapInstance(map)
 
-    // Update store when map changes
     map.addListener('center_changed', () => {
       const center = map.getCenter()
       if (center) {

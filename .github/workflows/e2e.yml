@@ -23,9 +23,10 @@ jobs:
     env:
       DATABASE_URL: postgresql://onlypaws:onlypaws_dev@localhost:5432/onlypaws_development
       NUXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.CLERK_PUBLISHABLE_KEY }}
-      NUXT_CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
-      GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
       CLERK_PUBLISHABLE_KEY: ${{ secrets.CLERK_PUBLISHABLE_KEY }}
+      NUXT_CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+      CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+      GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -45,5 +46,7 @@ jobs:
         run: npm run prisma:generate
       - name: Seed database
         run: npm run prisma:seed
+      - name: Print Clerk env
+        run: printenv | grep CLERK
       - name: Run E2E tests
         run: npm run test:e2e

@@ -27,7 +27,7 @@ export function useMap() {
   async function initializeMap(element: HTMLElement): Promise<google.maps.Map> {
     await loadGoogleMaps()
 
-    const center = { lat: mapStore.center.lat, lng: mapStore.center.lng }
+    const center = mapStore.center ?? { lat: 12.9716, lng: 77.5946 }
     const zoom = mapStore.zoom
 
     const map = new google.maps.Map(element, {

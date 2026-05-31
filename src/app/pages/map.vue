@@ -74,7 +74,7 @@ import AddLocationForm from '~/components/location/AddLocationForm.vue'
 
 const { isSignedIn } = useAuth()
 const { fetchLocations, locations, loading } = useLocations()
-const { initializeMap, createMarker } = useMap()
+const { initializeMap, createMarker, mapStore } = useMap()
 
 const mapContainer = ref<HTMLElement>()
 const showAddModal = ref(false)
@@ -93,9 +93,23 @@ const locationTypes = computed(() => {
 })
 
 onMounted(async () => {
+  await resolveCenter()
   await initMap()
   await loadLocations()
 })
+
+function resolveCenter(): Promise<void> {
+  return new Promise((resolve) => {
+    if (!navigator.geolocation) return resolve()
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        mapStore.setCenter({ lat: coords.latitude, lng: coords.longitude })
+        resolve()
+      },
+      () => resolve()
+    )
+  })
+}
 
 async function initMap() {
   if (!mapContainer.value) return
@@ -147,16 +161,6 @@ function updateMarkers() {
 
     markers.push(marker)
   })
-
-  // Fit bounds to show all markers
-  if (markers.length > 0) {
-    const bounds = new google.maps.LatLngBounds()
-    markers.forEach((marker) => {
-      const position = marker.getPosition()
-      if (position) bounds.extend(position)
-    })
-    mapInstance.fitBounds(bounds)
-  }
 }
 
 const handleSearch = debounce(() => {

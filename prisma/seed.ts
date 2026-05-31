@@ -7,6 +7,14 @@ const prisma = new PrismaClient({ adapter })
 async function main() {
   console.log('🌱 Starting database seed...')
 
+  // Wipe location-related data so the seed is idempotent
+  await prisma.comment.deleteMany({})
+  await prisma.favorite.deleteMany({})
+  await prisma.review.deleteMany({})
+  await prisma.photo.deleteMany({})
+  await prisma.location.deleteMany({})
+  console.log('🧹 Cleared existing location data')
+
   // Create a test user first
   const testUser = await prisma.user.upsert({
     where: { clerkUserId: 'user_seed_test' },

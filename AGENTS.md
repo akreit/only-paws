@@ -1,109 +1,52 @@
-# coding Guidelines for Agents
+# AGENTS.md
 
-## Planning Before Implementation
+Canonical repo guidance for both GitHub Copilot and Claude Code.
 
-Never jump straight into coding. Always:
+## Working style
 
-1. Understand the problem statement fully
-2. Explore the existing codebase to understand patterns and conventions
-3. Identify affected components and dependencies
-4. Plan the approach before writing any code
-5. Consider edge cases and potential issues
+- Plan before editing; inspect the existing flow first.
+- Keep changes small, clear, and aligned with current patterns.
+- Prefer feature-oriented organization and concise comments only where helpful.
+- Validate every non-trivial change with targeted tests and/or type checks.
 
-## Clean Code Principles
+## Commands
 
-### Code Style
+```bash
+npm run dev
+docker compose up -d
 
-- Write readable, self-documenting code
-- Use meaningful variable and function names
-- Keep functions small and focused on a single responsibility
-- Avoid deep nesting
-- Follow existing code conventions in the repository
+npm run lint
+npm run typecheck
 
-### Maintainability
+npx vitest run
+npm run test:e2e
 
-- DRY (Don't Repeat Yourself) - extract repeated logic into reusable functions
-- KISS (Keep It Simple) - prefer simple solutions over complex ones
-- Document complex logic when necessary
-- Keep code loosely coupled and highly cohesive
+npm run prisma:generate
+npx prisma db push
+```
 
-### Code Organization
+## Repo shape
 
-- Group related functionality together
-- Separate concerns clearly
-- Use consistent file naming conventions
-- Keep imports organized
+- Frontend lives in `src/app` (`pages`, `components`, `composables`, `stores`, `middleware`).
+- Server lives in `src/server` (`api`, `utils`).
+- Tests live in `tests/unit` and `tests/e2e`.
+- State uses Pinia; composables wrap store access and API calls.
 
-## Modular Architecture
+## Server rules
 
-### Design Principles
+- Nitro route pattern: `[resource]/index.get.ts`, `index.post.ts`, `[id].get.ts`, `[id].delete.ts`.
+- In server files, use Nitro auto-imports from `src/server/utils/`.
+- Do **not** use `~/` aliases in server code.
+- `prisma/schema.prisma` has no datasource `url`; use `prisma.config.ts`.
 
-- Break large features into smaller, independent modules
-- Each module should have a single, well-defined purpose
-- Minimize dependencies between modules
-- Use clear interfaces for module communication
+## Auth
 
-### File Structure
+- Clerk handles auth.
+- Use `requireAuth(event)` for protected server routes.
+- Users are synced into the local `User` table via `POST /api/users/sync`.
 
-- Organize files by feature/domain rather than type
-- Keep related files close to each other
-- Use index files to simplify imports when appropriate
-- Maintain a shallow directory structure
+## Testing expectations
 
-### Component Design
-
-- Design components for reusability
-- Keep components focused and composable
-- Avoid tight coupling between components
-- Use dependency injection when appropriate
-
-## Testing Requirements
-
-### Test Coverage
-
-- Write tests for all new functionality
-- Aim for high test coverage (at least 80%)
-- Test both happy path and edge cases
-- Test error handling and error scenarios
-
-### Test Quality
-
-- Write clear, descriptive test names
-- Tests should be independent and isolated
-- Use appropriate test fixtures and helpers
-- Avoid implementation details in tests - test behavior
-
-### Test Organization
-
-- Keep tests close to the code they test
-- Organize tests logically
-- Use consistent test file naming
-
-## Code Review Checklist
-
-Before considering code complete:
-
-- [ ] Code is readable and follows clean code principles
-- [ ] Functions are small and focused
-- [ ] No code duplication
-- [ ] Appropriate error handling
-- [ ] Tests written and passing
-- [ ] No linting or type checking errors
-- [ ] Documentation updated if needed
-
-## Repository-Specific Conventions
-
-Check and follow:
-
-- Existing code style patterns
-- Framework-specific conventions
-- Import organization
-- File naming patterns
-- Testing approach used in project
-
-## When in Doubt
-
-- Prioritize clarity over cleverness
-- Ask questions when requirements are unclear
-- Propose alternatives when multiple approaches are possible
-- Document any significant architectural decisions
+- Add/update unit tests for logic changes.
+- Add/update Playwright coverage for meaningful UI flow changes.
+- Before finishing, ensure tests pass and there are no relevant lint/type errors.

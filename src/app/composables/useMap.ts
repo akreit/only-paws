@@ -1,4 +1,5 @@
 import { setOptions, importLibrary } from '@googlemaps/js-api-loader'
+import type { GooglePlaceDetails } from '~/types'
 
 let isLoaded = false
 
@@ -121,12 +122,66 @@ export function useMap() {
     })
   }
 
+  async function getPlaceDetails(
+    map: google.maps.Map,
+    placeId: string
+  ): Promise<GooglePlaceDetails | null> {
+    await loadGoogleMaps()
+
+    const placesService = new google.maps.places.PlacesService(map)
+
+    return new Promise((resolve) => {
+      placesService.getDetails(
+        {
+          placeId,
+          fields: [
+            'place_id',
+            'name',
+            'formatted_address',
+            'geometry',
+            'website',
+            'formatted_phone_number',
+            'opening_hours',
+            'rating',
+            'user_ratings_total',
+            'types',
+            'url',
+          ],
+        },
+        (place, status) => {
+          const location = place?.geometry?.location
+
+          if (status !== google.maps.places.PlacesServiceStatus.OK || !place || !location) {
+            resolve(null)
+            return
+          }
+
+          resolve({
+            placeId: place.place_id || placeId,
+            name: place.name || place.formatted_address || 'Untitled place',
+            address: place.formatted_address || 'Address unavailable',
+            latitude: location.lat(),
+            longitude: location.lng(),
+            website: place.website || undefined,
+            phone: place.formatted_phone_number || undefined,
+            rating: place.rating || undefined,
+            userRatingCount: place.user_ratings_total || undefined,
+            openingHours: place.opening_hours?.weekday_text || undefined,
+            googleMapsUrl: place.url || undefined,
+            types: place.types || [],
+          })
+        }
+      )
+    })
+  }
+
   return {
     loadGoogleMaps,
     initializeMap,
     createMarker,
     geocodeAddress,
     reverseGeocode,
+    getPlaceDetails,
     mapStore,
   }
 }

@@ -10,7 +10,6 @@
       :disabled="disabled"
       :required="required"
       :class="selectClasses"
-      options=""
       @change="handleChange"
     >
       <option v-if="placeholder" value="" disabled>{{ placeholder }}</option>

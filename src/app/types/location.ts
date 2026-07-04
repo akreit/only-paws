@@ -17,6 +17,7 @@ export enum LocationType {
 
 export interface Location {
   id: string
+  googlePlaceId?: string
   name: string
   type: LocationType
   description?: string
@@ -44,6 +45,7 @@ export interface Location {
 }
 
 export interface CreateLocationInput {
+  googlePlaceId?: string
   name: string
   type: LocationType
   description?: string
@@ -57,6 +59,21 @@ export interface CreateLocationInput {
   breedRestrictions?: string
   offLeashArea?: boolean
   amenities?: string[]
+}
+
+export interface GooglePlaceDetails {
+  placeId: string
+  name: string
+  address: string
+  latitude: number
+  longitude: number
+  website?: string
+  phone?: string
+  rating?: number
+  userRatingCount?: number
+  openingHours?: string[]
+  googleMapsUrl?: string
+  types: string[]
 }
 
 export interface UpdateLocationInput extends Partial<CreateLocationInput> {

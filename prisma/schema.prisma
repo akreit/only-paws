@@ -25,6 +25,7 @@ model User {
 
 model Location {
   id          String       @id @default(cuid())
+  googlePlaceId String?    @unique
   name        String
   type        LocationType
   description String?

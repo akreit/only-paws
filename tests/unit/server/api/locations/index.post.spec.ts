@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setupServerMocks, createMockEvent } from '../../../../helpers/server'
 
 const mocks = setupServerMocks()
@@ -47,7 +47,9 @@ describe('POST /api/locations', () => {
   it('creates location with correct data and createdById', async () => {
     mocks.requireAuth.mockResolvedValue('clerk_123')
     mocks.prisma.user.findUnique.mockResolvedValue({ id: 'user-1', clerkUserId: 'clerk_123' })
+    mocks.prisma.location.findUnique.mockResolvedValue(null)
     const body = {
+      googlePlaceId: 'google-place-123',
       name: 'Dog Park',
       type: 'DOG_PARK',
       address: '123 Main St',
@@ -70,6 +72,7 @@ describe('POST /api/locations', () => {
     expect(mocks.prisma.location.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
+          googlePlaceId: 'google-place-123',
           name: 'Dog Park',
           type: 'DOG_PARK',
           address: '123 Main St',
@@ -83,6 +86,7 @@ describe('POST /api/locations', () => {
   it('parses latitude and longitude as floats', async () => {
     mocks.requireAuth.mockResolvedValue('clerk_123')
     mocks.prisma.user.findUnique.mockResolvedValue({ id: 'user-1' })
+    mocks.prisma.location.findUnique.mockResolvedValue(null)
     mocks.readBody.mockResolvedValue({
       name: 'Park',
       type: 'DOG_PARK',
@@ -102,6 +106,7 @@ describe('POST /api/locations', () => {
   it('stringifies amenities array to JSON', async () => {
     mocks.requireAuth.mockResolvedValue('clerk_123')
     mocks.prisma.user.findUnique.mockResolvedValue({ id: 'user-1' })
+    mocks.prisma.location.findUnique.mockResolvedValue(null)
     mocks.readBody.mockResolvedValue({
       name: 'Park',
       type: 'DOG_PARK',
@@ -121,6 +126,7 @@ describe('POST /api/locations', () => {
   it('sets amenities to null when not provided', async () => {
     mocks.requireAuth.mockResolvedValue('clerk_123')
     mocks.prisma.user.findUnique.mockResolvedValue({ id: 'user-1' })
+    mocks.prisma.location.findUnique.mockResolvedValue(null)
     mocks.readBody.mockResolvedValue({
       name: 'Park',
       type: 'DOG_PARK',
@@ -139,6 +145,7 @@ describe('POST /api/locations', () => {
   it('returns the created location', async () => {
     mocks.requireAuth.mockResolvedValue('clerk_123')
     mocks.prisma.user.findUnique.mockResolvedValue({ id: 'user-1' })
+    mocks.prisma.location.findUnique.mockResolvedValue(null)
     mocks.readBody.mockResolvedValue({
       name: 'Park',
       type: 'DOG_PARK',
@@ -152,5 +159,52 @@ describe('POST /api/locations', () => {
     const result = await handler(createMockEvent())
 
     expect(result).toEqual(created)
+  })
+
+  it('returns an existing location when the googlePlaceId already exists', async () => {
+    mocks.requireAuth.mockResolvedValue('clerk_123')
+    mocks.prisma.user.findUnique.mockResolvedValue({ id: 'user-1' })
+    mocks.readBody.mockResolvedValue({
+      googlePlaceId: 'google-place-123',
+      name: 'Park',
+      type: 'DOG_PARK',
+      address: '123 St',
+      latitude: '0',
+      longitude: '0',
+    })
+
+    const existingLocation = { id: 'loc-existing', googlePlaceId: 'google-place-123', name: 'Park' }
+    mocks.prisma.location.findUnique.mockResolvedValue(existingLocation)
+
+    const result = await handler(createMockEvent())
+
+    expect(mocks.prisma.location.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { googlePlaceId: 'google-place-123' },
+      })
+    )
+    expect(mocks.prisma.location.create).not.toHaveBeenCalled()
+    expect(result).toEqual(existingLocation)
+  })
+
+  it('does not try to deduplicate when googlePlaceId is blank', async () => {
+    mocks.requireAuth.mockResolvedValue('clerk_123')
+    mocks.prisma.user.findUnique.mockResolvedValue({ id: 'user-1' })
+    mocks.readBody.mockResolvedValue({
+      googlePlaceId: '   ',
+      name: 'Park',
+      type: 'DOG_PARK',
+      address: '123 St',
+      latitude: '0',
+      longitude: '0',
+    })
+    mocks.prisma.location.create.mockResolvedValue({ id: 'loc-1' })
+
+    await handler(createMockEvent())
+
+    expect(mocks.prisma.location.findUnique).not.toHaveBeenCalled()
+
+    const createData = mocks.prisma.location.create.mock.calls[0][0].data
+    expect(createData.googlePlaceId).toBeUndefined()
   })
 })

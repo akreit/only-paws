@@ -14,6 +14,13 @@ export const useLocationsStore = defineStore('locations', () => {
   }
 
   function addLocation(location: Location) {
+    const existingIndex = locations.value.findIndex((loc) => loc.id === location.id)
+
+    if (existingIndex !== -1) {
+      locations.value[existingIndex] = location
+      return
+    }
+
     locations.value.push(location)
   }
 
@@ -89,4 +96,3 @@ export const useLocationsStore = defineStore('locations', () => {
     setError,
   }
 })
-

@@ -1,6 +1,3 @@
-import prisma from '~/server/utils/prisma'
-import { requireAuth } from '~/server/utils/auth'
-
 export default defineEventHandler(async (event) => {
   const clerkUserId = await requireAuth(event)
   const locationId = getRouterParam(event, 'locationId')
@@ -34,4 +31,3 @@ export default defineEventHandler(async (event) => {
 
   return { success: true }
 })
-

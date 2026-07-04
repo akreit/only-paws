@@ -1,5 +1,3 @@
-import prisma from '~/server/utils/prisma'
-
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
   const { clerkUserId, email, username, avatarUrl } = body
@@ -29,4 +27,3 @@ export default defineEventHandler(async (event) => {
 
   return user
 })
-

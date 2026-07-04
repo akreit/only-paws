@@ -62,4 +62,3 @@ export function pluralize(count: number, singular: string, plural?: string): str
   if (count === 1) return singular
   return plural || `${singular}s`
 }
-

@@ -1,0 +1,17 @@
+# Copy this file to terraform.tfvars and fill in your values.
+# terraform.tfvars is gitignored and must never be committed.
+
+vercel_api_token      = ""
+vercel_project_name   = "only-paws"
+
+neon_api_key          = ""
+
+clerk_publishable_key    = ""
+clerk_secret_key         = ""
+
+google_maps_api_key      = ""
+
+cloudinary_cloud_name    = ""
+cloudinary_api_key       = ""
+cloudinary_api_secret    = ""
+cloudinary_upload_preset = ""

@@ -1,8 +1,21 @@
-import prisma from '~/server/utils/prisma'
-import { requireAuth } from '~/server/utils/auth'
-
 export default defineEventHandler(async (event) => {
   const clerkUserId = await requireAuth(event)
+
+  const locationInclude = {
+    photos: true,
+    reviews: {
+      include: {
+        author: true,
+      },
+    },
+    _count: {
+      select: {
+        reviews: true,
+        photos: true,
+        favorites: true,
+      },
+    },
+  }
 
   // Get database user
   const dbUser = await prisma.user.findUnique({
@@ -17,7 +30,27 @@ export default defineEventHandler(async (event) => {
   }
 
   const body = await readBody(event)
-  const { name, type, description, address, latitude, longitude, website, phone, hours, leashRequired, breedRestrictions, offLeashArea, amenities } = body
+  const {
+    googlePlaceId,
+    name,
+    type,
+    description,
+    address,
+    latitude,
+    longitude,
+    website,
+    phone,
+    hours,
+    leashRequired,
+    breedRestrictions,
+    offLeashArea,
+    amenities,
+  } = body
+
+  const normalizedGooglePlaceId =
+    typeof googlePlaceId === 'string' && googlePlaceId.trim().length > 0
+      ? googlePlaceId.trim()
+      : undefined
 
   // Validate required fields
   if (!name || !type || !address || latitude === undefined || longitude === undefined) {
@@ -27,9 +60,21 @@ export default defineEventHandler(async (event) => {
     })
   }
 
+  if (normalizedGooglePlaceId) {
+    const existingLocation = await prisma.location.findUnique({
+      where: { googlePlaceId: normalizedGooglePlaceId },
+      include: locationInclude,
+    })
+
+    if (existingLocation) {
+      return existingLocation
+    }
+  }
+
   // Create location
   const location = await prisma.location.create({
     data: {
+      googlePlaceId: normalizedGooglePlaceId,
       name,
       type,
       description,
@@ -45,23 +90,8 @@ export default defineEventHandler(async (event) => {
       amenities: amenities ? JSON.stringify(amenities) : null,
       createdById: dbUser.id,
     },
-    include: {
-      photos: true,
-      reviews: {
-        include: {
-          author: true,
-        },
-      },
-      _count: {
-        select: {
-          reviews: true,
-          photos: true,
-          favorites: true,
-        },
-      },
-    },
+    include: locationInclude,
   })
 
   return location
 })
-

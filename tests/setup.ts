@@ -24,4 +24,3 @@ beforeAll(() => {
     } as typeof google
   }
 })
-

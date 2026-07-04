@@ -9,12 +9,13 @@
     "moduleResolution": "bundler",
     "baseUrl": ".",
     "paths": {
-      "~/*": ["./src/app/*"],
+      "~/*": ["./src/app/*", "./src/server/*", "./src/*"],
       "@/*": ["./src/app/*"],
       "~~/*": ["./*"],
-      "@@/*": ["./*"]
+      "@@/*": ["./*"],
+      "#server/*": ["./src/server/*"]
     }
   },
   "include": ["src/**/*", "tests/**/*", ".nuxt/**/*"],
-  "exclude": ["node_modules", ".nuxt/dist"]
+  "exclude": ["node_modules", ".nuxt/dist", "tests"]
 }

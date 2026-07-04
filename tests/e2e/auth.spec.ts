@@ -61,4 +61,3 @@ test.describe('Authentication', () => {
     })
   })
 })
-

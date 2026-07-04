@@ -81,4 +81,3 @@ describe('Rating Component', () => {
     })
   })
 })
-

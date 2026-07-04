@@ -1,10 +1,10 @@
 <template>
-  <div class="bg-white rounded-lg border border-gray-200 p-6">
-    <h3 class="text-lg font-semibold text-gray-900 mb-4">Write a Review</h3>
+  <div class="rounded-lg border border-gray-200 bg-white p-6">
+    <h3 class="mb-4 text-lg font-semibold text-gray-900">Write a Review</h3>
 
     <form @submit.prevent="handleSubmit">
       <div class="mb-4">
-        <label class="block text-sm font-medium text-gray-700 mb-2">
+        <label class="mb-2 block text-sm font-medium text-gray-700">
           Rating <span class="text-red-500">*</span>
         </label>
         <Rating v-model="rating" :readonly="false" show-value />
@@ -12,7 +12,7 @@
       </div>
 
       <div class="mb-4">
-        <label for="comment" class="block text-sm font-medium text-gray-700 mb-1">
+        <label for="comment" class="mb-1 block text-sm font-medium text-gray-700">
           Comment (Optional)
         </label>
         <textarea
@@ -20,25 +20,13 @@
           v-model="comment"
           rows="4"
           placeholder="Share your experience..."
-          class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+          class="block w-full rounded-lg border border-gray-300 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm"
         />
       </div>
 
       <div class="flex justify-end gap-3">
-        <Button
-          v-if="onCancel"
-          type="button"
-          variant="outline"
-          @click="onCancel"
-        >
-          Cancel
-        </Button>
-        <Button
-          type="submit"
-          variant="primary"
-          :loading="loading"
-          :disabled="!isValid"
-        >
+        <Button v-if="onCancel" type="button" variant="outline" @click="onCancel"> Cancel </Button>
+        <Button type="submit" variant="primary" :loading="loading" :disabled="!isValid">
           Submit Review
         </Button>
       </div>
@@ -98,4 +86,3 @@ async function handleSubmit() {
   }
 }
 </script>
-

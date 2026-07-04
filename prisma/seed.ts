@@ -1,9 +1,19 @@
 import { PrismaClient, LocationType } from '@prisma/client'
+import { PrismaPg } from '@prisma/adapter-pg'
 
-const prisma = new PrismaClient()
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL })
+const prisma = new PrismaClient({ adapter })
 
 async function main() {
   console.log('🌱 Starting database seed...')
+
+  // Wipe location-related data so the seed is idempotent
+  await prisma.comment.deleteMany({})
+  await prisma.favorite.deleteMany({})
+  await prisma.review.deleteMany({})
+  await prisma.photo.deleteMany({})
+  await prisma.location.deleteMany({})
+  console.log('🧹 Cleared existing location data')
 
   // Create a test user first
   const testUser = await prisma.user.upsert({
@@ -21,44 +31,45 @@ async function main() {
   // Create sample locations
   const locations = [
     {
-      name: 'Central Park Dog Run',
+      name: 'Cubbon Park Dog Run',
       type: LocationType.PARK,
-      description: 'Large off-leash area in the heart of the city. Water stations and waste bags provided.',
-      address: 'Central Park, New York, NY 10024',
-      latitude: 40.7736,
-      longitude: -73.9712,
-      website: 'https://www.centralparknyc.org',
-      phone: '+1 212-310-6600',
-      hours: '6:00 AM - 11:00 PM',
+      description:
+        'Spacious off-leash area inside Cubbon Park. Water stations and shaded walkways.',
+      address: 'Cubbon Park, Kasturba Road, Bangalore 560001',
+      latitude: 12.9763,
+      longitude: 77.5929,
+      website: 'https://horticulture.karnataka.gov.in',
+      phone: '+91 80-2286-6483',
+      hours: '6:00 AM - 8:00 PM',
       leashRequired: false,
       offLeashArea: true,
       amenities: JSON.stringify(['Water bowls', 'Waste bags', 'Shade']),
       createdById: testUser.id,
     },
     {
-      name: 'Bark Avenue Cafe',
+      name: 'The Barkery Cafe',
       type: LocationType.CAFE,
-      description: 'Dog-friendly cafe with outdoor seating and a special treat menu for pups.',
-      address: '123 5th Avenue, New York, NY 10001',
-      latitude: 40.7549,
-      longitude: -73.9840,
-      website: 'https://barkavenuecafe.com',
-      phone: '+1 212-555-0123',
-      hours: '7:00 AM - 9:00 PM',
+      description: 'Dog-friendly cafe in Indiranagar with outdoor seating and pup-friendly treats.',
+      address: '100 Feet Road, Indiranagar, Bangalore 560038',
+      latitude: 12.9784,
+      longitude: 77.6408,
+      website: 'https://thebarkery.in',
+      phone: '+91 98765-43210',
+      hours: '8:00 AM - 10:00 PM',
       leashRequired: true,
       offLeashArea: false,
       amenities: JSON.stringify(['Dog treats', 'Dog menu', 'Patio', 'Water bowls']),
       createdById: testUser.id,
     },
     {
-      name: 'Paws & Relax Spa',
+      name: 'Paws & Groom Koramangala',
       type: LocationType.GROOMER,
-      description: 'Full-service dog grooming spa with organic products.',
-      address: '456 Broadway, New York, NY 10012',
-      latitude: 40.7198,
-      longitude: -73.9973,
-      website: 'https://pawsandrelax.com',
-      phone: '+1 212-555-0456',
+      description: 'Full-service dog grooming salon in the heart of Koramangala.',
+      address: '5th Block, Koramangala, Bangalore 560095',
+      latitude: 12.9352,
+      longitude: 77.6245,
+      website: 'https://pawsandgroom.in',
+      phone: '+91 99001-12345',
       hours: '9:00 AM - 7:00 PM',
       leashRequired: true,
       offLeashArea: false,
@@ -112,4 +123,3 @@ main()
   .finally(async () => {
     await prisma.$disconnect()
   })
-

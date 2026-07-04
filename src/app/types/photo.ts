@@ -26,4 +26,3 @@ export interface CloudinaryUploadResult {
   width: number
   height: number
 }
-

@@ -55,6 +55,12 @@ export default defineNuxtConfig({
 
   css: ['assets/styles/main.css'],
 
+  nitro: {
+    externals: {
+      inline: ['@prisma/client', '@prisma/adapter-pg'],
+    },
+  },
+
   vite: {
     optimizeDeps: {
       include: ['@googlemaps/js-api-loader'],

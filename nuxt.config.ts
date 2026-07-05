@@ -2,6 +2,7 @@ import { defineNuxtConfig } from 'nuxt/config'
 
 export default defineNuxtConfig({
   compatibilityDate: '2024-11-01',
+  buildDir: process.env.NUXT_BUILD_DIR || '.nuxt',
   devtools: {
     enabled: true,
 

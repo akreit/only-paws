@@ -51,7 +51,7 @@
       v-else-if="selectedPlace"
       :place="selectedPlace"
       :location-type="selectedPlaceLocationType"
-      :is-signed-in="isSignedIn"
+      :is-signed-in="!!isSignedIn"
       :existing-location-id="existingLocationForSelectedPlace?.id"
       @add="handleAddSelectedPlace"
       @dismiss="selectedPlace = null"

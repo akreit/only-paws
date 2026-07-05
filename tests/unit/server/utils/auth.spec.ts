@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { requireAuth } from '#server/utils/auth'
 
 const { getAuthMock } = vi.hoisted(() => ({
@@ -19,8 +19,15 @@ vi.stubGlobal(
 )
 
 describe('requireAuth', () => {
+  let consoleErrorSpy: ReturnType<typeof vi.spyOn>
+
   beforeEach(() => {
     vi.clearAllMocks()
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+  })
+
+  afterEach(() => {
+    consoleErrorSpy.mockRestore()
   })
 
   it('returns the Clerk user id from the request auth context', async () => {

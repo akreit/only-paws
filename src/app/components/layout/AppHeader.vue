@@ -106,6 +106,7 @@
 
 <script setup lang="ts">
 import { SignOutButton } from '@clerk/nuxt/components'
+import Button from '~/components/ui/Button.vue'
 
 const { isSignedIn } = useAuth()
 const { user } = useUser()

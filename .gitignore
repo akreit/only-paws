@@ -3,6 +3,7 @@
 !.env.example
 node_modules/
 .nuxt/
+.nuxt-typecheck/
 .output/
 dist/
 .DS_Store

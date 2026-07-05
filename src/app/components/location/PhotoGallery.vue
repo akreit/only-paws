@@ -114,6 +114,8 @@ import { ref } from 'vue'
 import type { Photo } from '~/types'
 import { formatRelativeTime } from '~/utils/formatters'
 import { MAX_PHOTO_SIZE_MB } from '~/utils/constants'
+import Button from '~/components/ui/Button.vue'
+import Modal from '~/components/ui/Modal.vue'
 
 interface Props {
   locationId: string

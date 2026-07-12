@@ -14,6 +14,13 @@
           @input="handleSearch"
         />
 
+        <input
+          ref="placeSearchInput"
+          type="text"
+          placeholder="Go to a place or address..."
+          class="mt-2 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm placeholder-gray-400 shadow-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+
         <div class="mt-3 flex flex-wrap gap-2">
           <button
             v-for="type in locationTypes"
@@ -97,9 +104,10 @@ import MapPlacePreviewCard from '~/components/location/MapPlacePreviewCard.vue'
 const { isSignedIn } = useAuth()
 const notifications = useNotificationsStore()
 const { fetchLocations, locations, loading } = useLocations()
-const { initializeMap, createMarker, mapStore, getPlaceDetails } = useMap()
+const { initializeMap, createMarker, mapStore, getPlaceDetails, bindPlaceAutocomplete } = useMap()
 
 const mapContainer = ref<HTMLElement>()
+const placeSearchInput = ref<HTMLInputElement>()
 const showAddModal = ref(false)
 const searchQuery = ref('')
 const selectedType = ref<LocationType | null>(null)
@@ -109,6 +117,7 @@ const placeDetailsLoading = ref(false)
 let mapInstance: google.maps.Map | null = null
 const markers: google.maps.Marker[] = []
 let mapClickListener: google.maps.MapsEventListener | null = null
+let placeAutocomplete: google.maps.places.Autocomplete | null = null
 
 const locationTypes = computed(() => {
   return Object.values(LocationType).map((type) => ({
@@ -142,11 +151,15 @@ const selectedPlaceInput = computed<CreateLocationInput | undefined>(() => {
 onMounted(async () => {
   await resolveCenter()
   await initMap()
+  await initPlaceAutocomplete()
   await loadLocations()
 })
 
 onBeforeUnmount(() => {
   mapClickListener?.remove()
+  if (placeAutocomplete) {
+    google.maps.event.clearInstanceListeners(placeAutocomplete)
+  }
 })
 
 function resolveCenter(): Promise<void> {
@@ -180,6 +193,33 @@ function bindPlaceClickListener() {
   mapClickListener = mapInstance.addListener('click', (event: google.maps.MapMouseEvent) => {
     void handleMapClick(event)
   })
+}
+
+async function initPlaceAutocomplete() {
+  if (!placeSearchInput.value) return
+
+  try {
+    placeAutocomplete = await bindPlaceAutocomplete(placeSearchInput.value, handlePlaceSelected)
+  } catch (error) {
+    console.error('Failed to initialize place search:', error)
+  }
+}
+
+function handlePlaceSelected(place: google.maps.places.PlaceResult) {
+  if (!mapInstance) return
+
+  const geometry = place.geometry
+  if (!geometry?.location) {
+    notifications.error('Could not find that place')
+    return
+  }
+
+  if (geometry.viewport) {
+    mapInstance.fitBounds(geometry.viewport)
+  } else {
+    mapInstance.panTo(geometry.location)
+    mapInstance.setZoom(16)
+  }
 }
 
 async function handleMapClick(event: google.maps.MapMouseEvent) {

@@ -175,6 +175,23 @@ export function useMap() {
     })
   }
 
+  async function bindPlaceAutocomplete(
+    input: HTMLInputElement,
+    onPlaceChanged: (place: google.maps.places.PlaceResult) => void
+  ): Promise<google.maps.places.Autocomplete> {
+    await loadGoogleMaps()
+
+    const autocomplete = new google.maps.places.Autocomplete(input, {
+      fields: ['place_id', 'name', 'formatted_address', 'geometry'],
+    })
+
+    autocomplete.addListener('place_changed', () => {
+      onPlaceChanged(autocomplete.getPlace())
+    })
+
+    return autocomplete
+  }
+
   return {
     loadGoogleMaps,
     initializeMap,
@@ -182,6 +199,7 @@ export function useMap() {
     geocodeAddress,
     reverseGeocode,
     getPlaceDetails,
+    bindPlaceAutocomplete,
     mapStore,
   }
 }

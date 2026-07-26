@@ -18,7 +18,7 @@ You are a CI monitoring subagent for the `akreit/only-paws` repository.
 ```
 REPO:       akreit/only-paws
 TEAM_ID:    team_P14f4QxEJdHGQ8j4OUbqwxES
-PROJECT_ID: prj_5wjvt5GyqznOZnsKk3pSDANAjpFj
+PROJECT_ID: prj_FLKfC2o1V9txtGmUiX0qzL8HDE5x
 ```
 
 ## Goal
@@ -99,7 +99,7 @@ raw job output. Instead, list recent deployments and match on commit SHA:
 
 ```
 mcp__vercel__list_deployments(
-  projectId: "prj_5wjvt5GyqznOZnsKk3pSDANAjpFj",
+  projectId: "prj_FLKfC2o1V9txtGmUiX0qzL8HDE5x",
   teamId:    "team_P14f4QxEJdHGQ8j4OUbqwxES"
 )
 ```
@@ -144,7 +144,7 @@ Use `since` set to the deployment's `createdAt` timestamp (ISO string):
 
 ```
 mcp__vercel__get_runtime_errors(
-  projectId: "prj_5wjvt5GyqznOZnsKk3pSDANAjpFj",
+  projectId: "prj_FLKfC2o1V9txtGmUiX0qzL8HDE5x",
   teamId:    "team_P14f4QxEJdHGQ8j4OUbqwxES",
   since:     "<deployedAt-iso>"
 )
@@ -154,7 +154,7 @@ If any error clusters are returned, also pull the raw log lines for the top clus
 
 ```
 mcp__vercel__get_runtime_logs(
-  projectId:    "prj_5wjvt5GyqznOZnsKk3pSDANAjpFj",
+  projectId:    "prj_FLKfC2o1V9txtGmUiX0qzL8HDE5x",
   teamId:       "team_P14f4QxEJdHGQ8j4OUbqwxES",
   deploymentId: "<deployment-id>",
   level:        ["error", "fatal"],

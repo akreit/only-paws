@@ -25,8 +25,16 @@ PROJECT_ID: prj_FLKfC2o1V9txtGmUiX0qzL8HDE5x
 
 1. Poll GitHub Actions for all workflow runs triggered by a specific commit.
 2. Wait until every run finishes.
-3. If a "Deploy to Vercel" job ran and succeeded, verify the Vercel deployment and check for runtime errors.
+3. If a "Deploy to Vercel (Production)" or "Deploy to Vercel (Preview)" job ran and succeeded, verify the Vercel deployment and check for runtime errors.
 4. Return a concise summary to the main conversation.
+
+Note: Vercel's native Git integration is disabled for this project
+(`vercel.json` sets `git.deploymentEnabled: false`). GitHub Actions is the
+only thing that deploys — `deploy-production` runs on push to `main`,
+`deploy-preview` runs on push to any other branch — both gated on
+lint/typecheck/unit-tests/build passing first. So at most one deploy job
+runs per commit, and it's the only Vercel deployment that should exist for
+that SHA.
 
 ---
 
@@ -75,7 +83,7 @@ gh run view <databaseId> --repo akreit/only-paws --log-failed 2>&1 | tail -100
 Only proceed with this phase if **all three conditions** are met:
 
 - A run belonging to the **"CI/CD Pipeline"** workflow was found.
-- That workflow included a **"Deploy to Vercel"** job.
+- That workflow included a **"Deploy to Vercel (Production)"** job (push to `main`) or a **"Deploy to Vercel (Preview)"** job (push to any other branch) — exactly one of the two runs per commit, never both.
 - That job's `conclusion` is `"success"`.
 
 **Before doing anything else in Phase 2**, load the Vercel plugin's deployment expertise:
@@ -208,20 +216,22 @@ Compose the report first, post it to GitHub (Phase 3), then return the same text
 
 ### GitHub Actions
 
-| Workflow        | Job                  | Status        |
-|-----------------|----------------------|---------------|
-| CI/CD Pipeline  | Lint Code            | ✅ success    |
-| CI/CD Pipeline  | Type Check           | ✅ success    |
-| CI/CD Pipeline  | Unit Tests           | ✅ success    |
-| CI/CD Pipeline  | Build Application    | ✅ success    |
-| CI/CD Pipeline  | Deploy to Vercel     | ✅ success    |
-| E2E Tests       | e2e                  | ✅ success    |
+| Workflow        | Job                             | Status        |
+|-----------------|----------------------------------|---------------|
+| CI/CD Pipeline  | Lint Code                        | ✅ success    |
+| CI/CD Pipeline  | Type Check                       | ✅ success    |
+| CI/CD Pipeline  | Unit Tests                       | ✅ success    |
+| CI/CD Pipeline  | Build Application                | ✅ success    |
+| CI/CD Pipeline  | Deploy to Vercel (Production/Preview) | ✅ success |
+| E2E Tests       | e2e                              | ✅ success    |
+
+(List only the deploy job that actually ran — Production or Preview, never both.)
 
 **Overall: ✅ All checks passed** (or ❌ N check(s) failed)
 
 ### Vercel Deployment   *(only if deploy ran)*
 
-- **URL:** https://paws-only-abc123-akreits-projects.vercel.app
+- **URL:** https://only-paws-abc123-akreits-projects.vercel.app
 - **State:** READY ✅  (or ERROR ❌)
 - **Runtime errors since deploy:** none  (or N error cluster(s) — see below)
 ```

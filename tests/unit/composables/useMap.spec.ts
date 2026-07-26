@@ -20,6 +20,21 @@ vi.stubGlobal('useMapStore', () => ({
   setMapInstance: vi.fn(),
 }))
 
+/** Mirror of map.vue's handlePlaceSelected used across navigation tests. */
+function makeNavigationHandler(mapInstance: google.maps.Map) {
+  return function handlePlaceSelected(place: google.maps.places.PlaceResult) {
+    const geometry = place.geometry
+    if (!geometry?.location) return
+
+    if (geometry.viewport) {
+      mapInstance.fitBounds(geometry.viewport)
+    } else {
+      mapInstance.panTo(geometry.location)
+      mapInstance.setZoom(16)
+    }
+  }
+}
+
 describe('useMap – bindPlaceAutocomplete', () => {
   let listeners: Record<string, (() => void)[]>
   let mockPlace: google.maps.places.PlaceResult
@@ -59,16 +74,17 @@ describe('useMap – bindPlaceAutocomplete', () => {
     } as typeof google
   })
 
-  it('creates an Autocomplete instance for the supplied input element', async () => {
+  it('creates an Autocomplete instance for the supplied input element and returns it', async () => {
     const input = document.createElement('input')
     document.body.appendChild(input)
     const { bindPlaceAutocomplete } = useMap()
 
-    await bindPlaceAutocomplete(input, vi.fn())
+    const result = await bindPlaceAutocomplete(input, vi.fn())
 
     expect(AutocompleteMock).toHaveBeenCalledWith(input, {
       fields: ['place_id', 'name', 'formatted_address', 'geometry'],
     })
+    expect(result).toBeDefined()
 
     document.body.removeChild(input)
   })
@@ -90,68 +106,63 @@ describe('useMap – bindPlaceAutocomplete', () => {
     document.body.removeChild(input)
   })
 
-  it('pans to the place location when the place has no viewport', () => {
-    const panToMock = vi.fn()
-    const setZoomMock = vi.fn()
-
-    const mapInstance = {
-      panTo: panToMock,
-      setZoom: setZoomMock,
-      fitBounds: vi.fn(),
-    } as unknown as google.maps.Map
-
-    // Reproduce the handlePlaceSelected logic from map.vue
-    function handlePlaceSelected(place: google.maps.places.PlaceResult) {
-      const geometry = place.geometry
-      if (!geometry?.location) return
-
-      if (geometry.viewport) {
-        mapInstance.fitBounds(geometry.viewport)
-      } else {
-        mapInstance.panTo(geometry.location)
-        mapInstance.setZoom(16)
-      }
-    }
-
-    handlePlaceSelected(mockPlace)
-
-    expect(panToMock).toHaveBeenCalledWith(mockPlace.geometry!.location)
-    expect(setZoomMock).toHaveBeenCalledWith(16)
-  })
-
-  it('calls fitBounds when the place result includes a viewport', () => {
-    const fitBoundsMock = vi.fn()
+  it('pans to the place location and sets zoom when the place has no viewport', async () => {
+    const input = document.createElement('input')
+    document.body.appendChild(input)
 
     const mapInstance = {
       panTo: vi.fn(),
       setZoom: vi.fn(),
-      fitBounds: fitBoundsMock,
+      fitBounds: vi.fn(),
     } as unknown as google.maps.Map
 
+    const { bindPlaceAutocomplete } = useMap()
+    await bindPlaceAutocomplete(input, makeNavigationHandler(mapInstance))
+
+    listeners['place_changed']?.forEach((cb) => cb())
+
+    expect(mapInstance.panTo).toHaveBeenCalledWith(mockPlace.geometry!.location)
+    expect(mapInstance.setZoom).toHaveBeenCalledWith(16)
+    expect(mapInstance.fitBounds).not.toHaveBeenCalled()
+
+    document.body.removeChild(input)
+  })
+
+  it('calls fitBounds when the place result includes a viewport', async () => {
     const viewport = {} as google.maps.LatLngBounds
     const placeWithViewport: google.maps.places.PlaceResult = {
       ...mockPlace,
-      geometry: {
-        location: mockPlace.geometry!.location,
-        viewport,
-      },
+      geometry: { location: mockPlace.geometry!.location, viewport },
     }
 
-    function handlePlaceSelected(place: google.maps.places.PlaceResult) {
-      const geometry = place.geometry
-      if (!geometry?.location) return
+    AutocompleteMock = vi.fn(function (this: Record<string, unknown>) {
+      this.addListener = vi.fn((event: string, cb: () => void) => {
+        if (!listeners[event]) listeners[event] = []
+        listeners[event].push(cb)
+      })
+      this.getPlace = vi.fn().mockReturnValue(placeWithViewport)
+    })
+    window.google.maps.places = {
+      Autocomplete: AutocompleteMock,
+    } as unknown as typeof google.maps.places
 
-      if (geometry.viewport) {
-        mapInstance.fitBounds(geometry.viewport)
-      } else {
-        mapInstance.panTo(geometry.location)
-        mapInstance.setZoom(16)
-      }
-    }
+    const input = document.createElement('input')
+    document.body.appendChild(input)
 
-    handlePlaceSelected(placeWithViewport)
+    const mapInstance = {
+      panTo: vi.fn(),
+      setZoom: vi.fn(),
+      fitBounds: vi.fn(),
+    } as unknown as google.maps.Map
 
-    expect(fitBoundsMock).toHaveBeenCalledWith(viewport)
+    const { bindPlaceAutocomplete } = useMap()
+    await bindPlaceAutocomplete(input, makeNavigationHandler(mapInstance))
+
+    listeners['place_changed']?.forEach((cb) => cb())
+
+    expect(mapInstance.fitBounds).toHaveBeenCalledWith(viewport)
     expect(mapInstance.panTo).not.toHaveBeenCalled()
+
+    document.body.removeChild(input)
   })
 })

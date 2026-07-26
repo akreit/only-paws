@@ -35,6 +35,19 @@ function makeNavigationHandler(mapInstance: google.maps.Map) {
   }
 }
 
+function buildAutocompleteMock(
+  place: google.maps.places.PlaceResult,
+  listeners: Record<string, (() => void)[]>
+): ReturnType<typeof vi.fn> {
+  return vi.fn(function (this: Record<string, unknown>) {
+    this.addListener = vi.fn((event: string, cb: () => void) => {
+      if (!listeners[event]) listeners[event] = []
+      listeners[event].push(cb)
+    })
+    this.getPlace = vi.fn().mockReturnValue(place)
+  })
+}
+
 describe('useMap – bindPlaceAutocomplete', () => {
   let listeners: Record<string, (() => void)[]>
   let mockPlace: google.maps.places.PlaceResult
@@ -55,13 +68,7 @@ describe('useMap – bindPlaceAutocomplete', () => {
       },
     }
 
-    AutocompleteMock = vi.fn(function (this: Record<string, unknown>) {
-      this.addListener = vi.fn((event: string, cb: () => void) => {
-        if (!listeners[event]) listeners[event] = []
-        listeners[event].push(cb)
-      })
-      this.getPlace = vi.fn().mockReturnValue(mockPlace)
-    })
+    AutocompleteMock = buildAutocompleteMock(mockPlace, listeners)
 
     window.google = {
       ...window.google,
@@ -135,13 +142,7 @@ describe('useMap – bindPlaceAutocomplete', () => {
       geometry: { location: mockPlace.geometry!.location, viewport },
     }
 
-    AutocompleteMock = vi.fn(function (this: Record<string, unknown>) {
-      this.addListener = vi.fn((event: string, cb: () => void) => {
-        if (!listeners[event]) listeners[event] = []
-        listeners[event].push(cb)
-      })
-      this.getPlace = vi.fn().mockReturnValue(placeWithViewport)
-    })
+    AutocompleteMock = buildAutocompleteMock(placeWithViewport, listeners)
     window.google.maps.places = {
       Autocomplete: AutocompleteMock,
     } as unknown as typeof google.maps.places

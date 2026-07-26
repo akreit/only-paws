@@ -202,6 +202,7 @@ async function initPlaceAutocomplete() {
     placeAutocomplete = await bindPlaceAutocomplete(placeSearchInput.value, handlePlaceSelected)
   } catch (error) {
     console.error('Failed to initialize place search:', error)
+    notifications.error('Place search is unavailable right now')
   }
 }
 

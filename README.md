@@ -41,6 +41,22 @@ A web application that helps dog owners find and share dog-friendly locations in
 - Docker & Docker Compose
 - npm or yarn
 
+## Local development
+
+This project comes with a human & agent-friendly local development environment based on [sandcat](https://github.com/VirtusLab/sandcat) devcontainers.
+
+Sandcat offers convenient features for agent-driven development, including:
+
+- secret substitution
+- restricted network access
+- restricted host access
+
+To initialize the local development environment, run:
+
+```bash
+sandcat run
+```
+
 ## Environment Variables
 
 Create a `.env` file in the root directory:

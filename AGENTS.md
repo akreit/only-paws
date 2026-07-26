@@ -32,6 +32,17 @@ npx prisma db push
 npm run prisma:seed
 ```
 
+## Working on features & bugs
+
+Always follow this development workflow:
+
+- pick up an issue from the GitHub remote repository. Use the `gh` cli to assign yourself to the issue and create a branch for it.
+- create a branch for the issue based on the issue type: chore / bugfix / feature (add a prefix to indicate the type, e.g., `chore/`, `bugfix)
+- make changes in the branch, keeping commits small and focused. Use `git add -p` to stage only relevant changes.
+- run tests and type checks locally before pushing changes. Fix tests if they fail.
+- push the branch to the remote repository and create a pull request (PR) for review.
+- wait for the ci-watcher agent to report the status of the CI runs for the PR. If any runs fail, investigate and fix the issues before merging.
+
 ## Repo shape
 
 - Frontend lives in `src/app` (`pages`, `components`, `composables`, `stores`, `middleware`, `types`, `plugins`, `assets`); `nuxt.config.ts` sets `srcDir: 'src/app'`.

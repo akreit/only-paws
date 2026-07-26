@@ -1,11 +1,10 @@
 # ---------------------------------------------------------------------------
-# Neon database
+# Database
+#
+# Provisioned via the Vercel Marketplace (Neon integration), not Terraform.
+# The integration auto-injects DATABASE_URL into the project, so it is not
+# managed here.
 # ---------------------------------------------------------------------------
-
-resource "neon_project" "only_paws" {
-  name      = "only-paws"
-  region_id = "aws-us-east-1"
-}
 
 # ---------------------------------------------------------------------------
 # Vercel project
@@ -23,6 +22,25 @@ import {
 resource "vercel_project" "only_paws" {
   name      = var.vercel_project_name
   framework = "nuxtjs"
+
+  # Pinned to the live project's current values so `apply` doesn't reset
+  # them to provider defaults (import only adopts state, not desired config).
+  git_repository = {
+    type              = "github"
+    repo              = "akreit/only-paws"
+    production_branch = "main"
+  }
+
+  oidc_token_config = {
+    enabled     = true
+    issuer_mode = "team"
+  }
+
+  vercel_authentication = {
+    # "all_except_custom_domains" (the live project's legacy value) was
+    # renamed to "standard_protection" by Vercel; same behavior, new name.
+    deployment_type = "standard_protection"
+  }
 }
 
 # ---------------------------------------------------------------------------
@@ -33,25 +51,39 @@ locals {
   env_targets = ["production", "preview"]
 }
 
-resource "vercel_project_environment_variable" "database_url" {
-  project_id = vercel_project.only_paws.id
-  key        = "DATABASE_URL"
-  value      = neon_project.only_paws.connection_uri
-  target     = local.env_targets
+# These three vars were created manually in the Vercel dashboard before this
+# config existed — import blocks adopt them instead of creating duplicates.
+import {
+  to = vercel_project_environment_variable.clerk_publishable_key
+  id = "${vercel_project.only_paws.id}/fkouPQETf4JlAIzy"
+}
+
+import {
+  to = vercel_project_environment_variable.clerk_secret_key
+  id = "${vercel_project.only_paws.id}/lrzXli6B3CW910ZM"
+}
+
+import {
+  to = vercel_project_environment_variable.google_maps_api_key
+  id = "${vercel_project.only_paws.id}/wqsTaIM8vsLF1L87"
 }
 
 resource "vercel_project_environment_variable" "clerk_publishable_key" {
   project_id = vercel_project.only_paws.id
-  key        = "CLERK_PUBLISHABLE_KEY"
-  value      = var.clerk_publishable_key
-  target     = local.env_targets
+  # Nuxt auto-maps runtime config from NUXT_PUBLIC_*/NUXT_* env vars at
+  # runtime (no rebuild needed) — use that naming, not the bare CLERK_* names.
+  key       = "NUXT_PUBLIC_CLERK_PUBLISHABLE_KEY"
+  value     = var.clerk_publishable_key
+  target    = local.env_targets
+  sensitive = true
 }
 
 resource "vercel_project_environment_variable" "clerk_secret_key" {
   project_id = vercel_project.only_paws.id
-  key        = "CLERK_SECRET_KEY"
+  key        = "NUXT_CLERK_SECRET_KEY"
   value      = var.clerk_secret_key
   target     = local.env_targets
+  sensitive  = true
 }
 
 resource "vercel_project_environment_variable" "google_maps_api_key" {
@@ -59,32 +91,8 @@ resource "vercel_project_environment_variable" "google_maps_api_key" {
   key        = "GOOGLE_MAPS_API_KEY"
   value      = var.google_maps_api_key
   target     = local.env_targets
+  sensitive  = true
 }
 
-resource "vercel_project_environment_variable" "cloudinary_cloud_name" {
-  project_id = vercel_project.only_paws.id
-  key        = "CLOUDINARY_CLOUD_NAME"
-  value      = var.cloudinary_cloud_name
-  target     = local.env_targets
-}
-
-resource "vercel_project_environment_variable" "cloudinary_api_key" {
-  project_id = vercel_project.only_paws.id
-  key        = "CLOUDINARY_API_KEY"
-  value      = var.cloudinary_api_key
-  target     = local.env_targets
-}
-
-resource "vercel_project_environment_variable" "cloudinary_api_secret" {
-  project_id = vercel_project.only_paws.id
-  key        = "CLOUDINARY_API_SECRET"
-  value      = var.cloudinary_api_secret
-  target     = local.env_targets
-}
-
-resource "vercel_project_environment_variable" "cloudinary_upload_preset" {
-  project_id = vercel_project.only_paws.id
-  key        = "CLOUDINARY_UPLOAD_PRESET"
-  value      = var.cloudinary_upload_preset
-  target     = local.env_targets
-}
+# Cloudinary env vars intentionally omitted — no account set up yet.
+# Tracked in https://github.com/akreit/only-paws/issues/30

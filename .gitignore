@@ -22,4 +22,11 @@ infra/.terraform/
 infra/.terraform.lock.hcl
 infra/terraform.tfstate
 infra/terraform.tfstate.backup
+infra/*.tfplan
+infra/tfplan.out
 
+.vercel
+.env*
+
+# claude
+.mcp.json

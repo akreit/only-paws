@@ -41,6 +41,22 @@ A web application that helps dog owners find and share dog-friendly locations in
 - Docker & Docker Compose
 - npm or yarn
 
+## Local development
+
+This project comes with a human & agent-friendly local development environment based on [sandcat](https://github.com/VirtusLab/sandcat) devcontainers.
+
+Sandcat offers convenient features for agent-driven development, including:
+
+- secret substitution
+- restricted network access
+- restricted host access
+
+To initialize the local development environment, run:
+
+```bash
+sandcat run
+```
+
 ## Environment Variables
 
 Create a `.env` file in the root directory:
@@ -179,11 +195,10 @@ only-paws/
 3. Add environment variables
 4. Deploy
 
-### Database (Render)
+### Database (Neon)
 
-1. Create PostgreSQL database on Render
-2. Update `DATABASE_URL` in Vercel
-3. Run migrations: `npm run prisma:migrate:deploy`
+1. In the Vercel project, go to **Storage → Create Database → Neon** and connect it to the project (this auto-provisions `DATABASE_URL` for Production and Preview)
+2. Run migrations: `npm run prisma:migrate:deploy`
 
 ## Contributing
 

@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run dev:*)",
+      "Bash(ls:*)",
+      "Bash(npx prisma generate:*)",
+      "Bash(curl:*)",
+      "Bash(npm run test:unit:*)",
+      "Bash(npm run typecheck:*)",
+      "mcp__vercel__list_deployments"
+    ]
+  },
+  "enabledMcpjsonServers": ["vercel"],
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if echo \"$CLAUDE_TOOL_INPUT\" | jq -r '.command // \"\"' | grep -q 'git push'; then echo 'Git push detected. Please spawn the ci-watcher subagent to monitor the CI build for this commit.'; fi"
+          }
+        ]
+      }
+    ]
+  }
+}

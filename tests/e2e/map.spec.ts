@@ -17,6 +17,13 @@ test.describe('Map Page', () => {
     await expect(searchInput).toBeVisible()
   })
 
+  test('should display places search input', async ({ page }) => {
+    await page.goto('/map')
+
+    const placeSearchInput = page.getByPlaceholder(/go to a place/i)
+    await expect(placeSearchInput).toBeVisible()
+  })
+
   test('should display location type filters', async ({ page }) => {
     await page.goto('/map')
 

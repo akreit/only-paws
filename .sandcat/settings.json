@@ -9,6 +9,11 @@
       "action": "allow",
       "host": "*vercel.com",
       "method": "POST"
+    },
+    {
+      "action": "allow",
+      "host": "api.vercel.com",
+      "method": "PATCH"
     }
   ]
 }

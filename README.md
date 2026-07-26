@@ -195,11 +195,10 @@ only-paws/
 3. Add environment variables
 4. Deploy
 
-### Database (Render)
+### Database (Neon)
 
-1. Create PostgreSQL database on Render
-2. Update `DATABASE_URL` in Vercel
-3. Run migrations: `npm run prisma:migrate:deploy`
+1. In the Vercel project, go to **Storage → Create Database → Neon** and connect it to the project (this auto-provisions `DATABASE_URL` for Production and Preview)
+2. Run migrations: `npm run prisma:migrate:deploy`
 
 ## Contributing
 

@@ -81,6 +81,15 @@ describe('useMap – bindPlaceAutocomplete', () => {
     } as typeof google
   })
 
+  it('throws when the input element is no longer attached to the DOM', async () => {
+    const input = document.createElement('input')
+    const { bindPlaceAutocomplete } = useMap()
+
+    await expect(bindPlaceAutocomplete(input, vi.fn())).rejects.toThrow(
+      '[Maps] Autocomplete input is no longer attached to the DOM'
+    )
+  })
+
   it('creates an Autocomplete instance for the supplied input element and returns it', async () => {
     const input = document.createElement('input')
     document.body.appendChild(input)

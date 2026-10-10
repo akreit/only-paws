@@ -59,6 +59,117 @@
         </div>
       </div>
 
+      <!-- About me -->
+      <div class="rounded-lg bg-white p-6 shadow-md">
+        <div class="mb-4 flex items-center justify-between">
+          <h2 class="text-xl font-semibold text-gray-900">About me</h2>
+          <Button v-if="!editing" variant="outline" size="sm" @click="startEditing">Edit</Button>
+        </div>
+
+        <form v-if="editing" class="space-y-4" @submit.prevent="handleSave">
+          <div>
+            <label for="profile-bio" class="mb-1 block text-sm font-medium text-gray-700">
+              Bio
+            </label>
+            <textarea
+              id="profile-bio"
+              v-model="form.bio"
+              rows="4"
+              placeholder="Tell other dog lovers about yourself 🐾"
+              class="block w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm"
+            />
+            <p
+              :class="[
+                'mt-1 text-sm',
+                bioCount > PROFILE_LIMITS.bio ? 'text-red-600' : 'text-gray-500',
+              ]"
+            >
+              {{ bioCount }}/{{ PROFILE_LIMITS.bio }}
+            </p>
+            <p v-if="errors.bio" class="mt-1 text-sm text-red-600">{{ errors.bio }}</p>
+          </div>
+
+          <Input
+            id="profile-city"
+            v-model="form.homeCity"
+            label="Home city"
+            :error="errors.homeCity"
+          />
+
+          <label class="flex items-center gap-2 text-sm font-medium text-gray-700">
+            <input v-model="form.hasDog" type="checkbox" class="h-4 w-4 rounded border-gray-300" />
+            I have a dog
+          </label>
+
+          <div v-if="form.hasDog" class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Input
+              id="profile-dog-name"
+              v-model="form.dogName"
+              label="Dog's name"
+              :error="errors.dogName"
+            />
+            <Input
+              id="profile-dog-breed"
+              v-model="form.dogBreed"
+              label="Dog's breed"
+              :error="errors.dogBreed"
+            />
+          </div>
+
+          <fieldset>
+            <legend class="mb-2 text-sm font-medium text-gray-700">I'm looking for</legend>
+            <div class="flex flex-wrap gap-2">
+              <button
+                v-for="option in LOOKING_FOR_VALUES"
+                :key="option"
+                type="button"
+                :aria-pressed="form.lookingFor.includes(option)"
+                :class="[
+                  'rounded-full border px-3 py-1 text-sm transition-colors',
+                  form.lookingFor.includes(option)
+                    ? 'border-blue-600 bg-blue-600 text-white'
+                    : 'border-gray-300 text-gray-700 hover:border-gray-400',
+                ]"
+                @click="toggleLookingFor(option)"
+              >
+                {{ LOOKING_FOR_LABELS[option] }}
+              </button>
+            </div>
+            <p v-if="errors.lookingFor" class="mt-1 text-sm text-red-600">
+              {{ errors.lookingFor }}
+            </p>
+          </fieldset>
+
+          <div class="flex gap-2">
+            <Button type="submit" variant="primary" :loading="saving">Save</Button>
+            <Button variant="ghost" :disabled="saving" @click="cancelEditing">Cancel</Button>
+          </div>
+        </form>
+
+        <div v-else-if="hasAboutInfo" class="space-y-3">
+          <p v-if="profile?.bio" class="whitespace-pre-line text-gray-700">{{ profile.bio }}</p>
+          <p v-if="profile?.homeCity" class="text-gray-600">📍 {{ profile.homeCity }}</p>
+          <p v-if="profile?.hasDog" class="text-gray-600">
+            🐶
+            {{ profile.dogName || 'My dog'
+            }}<span v-if="profile.dogBreed"> · {{ profile.dogBreed }}</span>
+          </p>
+          <div v-if="profile?.lookingFor?.length" class="flex flex-wrap items-center gap-2">
+            <span class="text-sm text-gray-500">Looking for:</span>
+            <span
+              v-for="item in profile.lookingFor"
+              :key="item"
+              class="rounded-full bg-blue-50 px-3 py-1 text-sm text-blue-700"
+            >
+              {{ LOOKING_FOR_LABELS[item] }}
+            </span>
+          </div>
+        </div>
+        <p v-else class="text-gray-500">
+          Nothing here yet. Tell others about yourself and your dog!
+        </p>
+      </div>
+
       <!-- Stats -->
       <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div class="rounded-lg bg-white p-6 text-center shadow-md">
@@ -221,15 +332,20 @@
 </template>
 
 <script setup lang="ts">
-import type { Location, Review } from '~/types'
+import type { Location, LookingFor, Review } from '~/types'
+import { LOOKING_FOR_LABELS, LOOKING_FOR_VALUES } from '~/types'
+import { PROFILE_LIMITS, countCharacters, validateProfileUpdate } from '~/utils/profile'
 import { formatRelativeTime } from '~/utils/formatters'
 import Rating from '~/components/ui/Rating.vue'
 import Button from '~/components/ui/Button.vue'
+import Input from '~/components/ui/Input.vue'
+import { useProfile } from '~/composables/useProfile'
 import LoadingSpinner from '~/components/ui/LoadingSpinner.vue'
 
 const { isSignedIn } = useAuth()
 const { user } = useUser()
 const { fetchFavorites } = useFavorites()
+const { profile, saving, fetchProfile, saveProfile } = useProfile()
 
 const loading = ref(true)
 const activeTab = ref('locations')
@@ -253,12 +369,68 @@ onMounted(async () => {
 
 async function loadUserData() {
   try {
-    // Fetch user's locations and reviews
-    const data = await $fetch<{ locations: Location[]; reviews: Review[] }>('/api/users/profile')
+    // Fetch stored profile, locations and reviews
+    const data = await fetchProfile()
     userLocations.value = data.locations || []
     userReviews.value = data.reviews || []
   } catch (error) {
     console.error('Failed to load user data:', error)
+  }
+}
+
+const editing = ref(false)
+const errors = ref<Record<string, string>>({})
+const form = reactive({
+  bio: '',
+  homeCity: '',
+  hasDog: false,
+  dogName: '',
+  dogBreed: '',
+  lookingFor: [] as LookingFor[],
+})
+
+const bioCount = computed(() => countCharacters(form.bio.trim()))
+const hasAboutInfo = computed(() => {
+  const p = profile.value
+  return !!(p?.bio || p?.homeCity || p?.hasDog || p?.lookingFor?.length)
+})
+
+function startEditing() {
+  const p = profile.value
+  form.bio = p?.bio ?? ''
+  form.homeCity = p?.homeCity ?? ''
+  form.hasDog = p?.hasDog ?? false
+  form.dogName = p?.dogName ?? ''
+  form.dogBreed = p?.dogBreed ?? ''
+  form.lookingFor = [...(p?.lookingFor ?? [])]
+  errors.value = {}
+  editing.value = true
+}
+
+function cancelEditing() {
+  editing.value = false
+  errors.value = {}
+}
+
+function toggleLookingFor(option: LookingFor) {
+  const index = form.lookingFor.indexOf(option)
+  if (index === -1) {
+    form.lookingFor.push(option)
+  } else {
+    form.lookingFor.splice(index, 1)
+  }
+}
+
+async function handleSave() {
+  const result = validateProfileUpdate({ ...form })
+  errors.value = Object.fromEntries(result.errors.map((e) => [e.field, e.message]))
+  if (!result.valid) return
+
+  try {
+    await saveProfile(result.data)
+    editing.value = false
+  } catch {
+    // saveProfile already notified the user; stay in edit mode
   }
 }
 

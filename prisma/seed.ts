@@ -23,6 +23,12 @@ async function main() {
       clerkUserId: 'user_seed_test',
       email: 'test@example.com',
       username: 'TestUser',
+      bio: 'Coffee, long walks and a very good boy 🐶☕',
+      homeCity: 'Bangalore',
+      hasDog: true,
+      dogName: 'Biscuit',
+      dogBreed: 'Indian Pariah Dog',
+      lookingFor: ['FRIENDS', 'PLAYDATES', 'PLACES'],
     },
   })
 

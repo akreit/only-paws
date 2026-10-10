@@ -68,12 +68,7 @@ function setup() {
     setZoom: vi.fn(),
     fitBounds: vi.fn(),
   }
-  const state = {
-    selectedType: ref<LocationType | null>(null),
-    selectedPlace: ref<GooglePlaceDetails | null>(null),
-    selectedSavedLocation: ref<Location | null>(null),
-    placeDetailsLoading: ref(false),
-  }
+  const selectedType = ref<LocationType | null>(null)
   const onLocationsUpdated = vi.fn()
   let search!: ReturnType<typeof useMapSearch>
   const wrapper = mount(
@@ -81,14 +76,14 @@ function setup() {
       setup() {
         search = useMapSearch({
           getMap: () => map as unknown as google.maps.Map,
-          ...state,
+          selectedType,
           onLocationsUpdated,
         })
         return () => null
       },
     })
   )
-  return { search, map, state, onLocationsUpdated, wrapper }
+  return { search, map, selectedType, onLocationsUpdated, wrapper }
 }
 
 describe('useMapSearch', () => {
@@ -136,8 +131,8 @@ describe('useMapSearch', () => {
     })
 
     it('passes the selected type filter', async () => {
-      const { search, state } = setup()
-      state.selectedType.value = LocationType.CAFE
+      const { search, selectedType } = setup()
+      selectedType.value = LocationType.CAFE
 
       search.query.value = 'bar'
       await vi.advanceTimersByTimeAsync(300)
@@ -175,15 +170,15 @@ describe('useMapSearch', () => {
       const { search, onLocationsUpdated } = setup()
 
       search.query.value = 'ol'
-      const first = search.runSearch()
+      await vi.advanceTimersByTimeAsync(300)
       search.query.value = 'new'
-      await search.runSearch()
+      await vi.advanceTimersByTimeAsync(300)
       expect(onLocationsUpdated).toHaveBeenCalledTimes(1)
 
       // The older request was superseded, so useLocations resolves it with null
       olderLocations.resolve(null)
       olderSuggestions.resolve([{ placeId: 'old', mainText: 'Old', secondaryText: '' }])
-      await first
+      await vi.advanceTimersByTimeAsync(0)
 
       expect(onLocationsUpdated).toHaveBeenCalledTimes(1)
       expect(search.model.value.flat.map((i) => i.key)).toEqual(['google:new'])
@@ -201,9 +196,25 @@ describe('useMapSearch', () => {
     })
   })
 
+  describe('category filter', () => {
+    it('re-runs the search and refreshes markers when the type changes', async () => {
+      const { selectedType, onLocationsUpdated } = setup()
+
+      selectedType.value = LocationType.CAFE
+      await nextTick()
+      await vi.advanceTimersByTimeAsync(0)
+
+      expect(mocks.fetchLocations).toHaveBeenCalledWith({
+        type: LocationType.CAFE,
+        search: undefined,
+      })
+      expect(onLocationsUpdated).toHaveBeenCalledTimes(1)
+    })
+  })
+
   describe('select', () => {
     it('opens a saved place and recentres the map', async () => {
-      const { search, map, state } = setup()
+      const { search, map } = setup()
       const location = createMockLocation({ id: 'a', googlePlaceId: 'gp' })
 
       await search.select({
@@ -215,8 +226,8 @@ describe('useMapSearch', () => {
         location,
       })
 
-      expect(state.selectedSavedLocation.value).toEqual(location)
-      expect(state.selectedPlace.value).toMatchObject({ placeId: 'gp', name: location.name })
+      expect(search.selectedSavedLocation.value).toEqual(location)
+      expect(search.selectedPlace.value).toMatchObject({ placeId: 'gp', name: location.name })
       expect(map.panTo).toHaveBeenCalledWith({ lat: location.latitude, lng: location.longitude })
       expect(map.setZoom).toHaveBeenCalledWith(16)
       expect(mocks.selectSuggestion).not.toHaveBeenCalled()
@@ -225,13 +236,13 @@ describe('useMapSearch', () => {
     it('opens a Google result, fits the viewport and drops a pin', async () => {
       const viewport = { id: 'vp' }
       mocks.selectSuggestion.mockResolvedValue({ details: googleDetails, viewport })
-      const { search, map, state } = setup()
+      const { search, map } = setup()
 
       await search.select(googleItem)
 
-      expect(state.selectedPlace.value).toEqual(googleDetails)
-      expect(state.selectedSavedLocation.value).toBeNull()
-      expect(state.placeDetailsLoading.value).toBe(false)
+      expect(search.selectedPlace.value).toEqual(googleDetails)
+      expect(search.selectedSavedLocation.value).toBeNull()
+      expect(search.placeDetailsLoading.value).toBe(false)
       expect(map.fitBounds).toHaveBeenCalledWith(viewport)
       expect(mocks.createMarker).toHaveBeenCalledWith(
         expect.objectContaining({ position: { lat: 1, lng: 2 }, title: 'Google Cafe' })
@@ -253,7 +264,7 @@ describe('useMapSearch', () => {
       const pins = [{ setMap: vi.fn() }, { setMap: vi.fn() }]
       mocks.createMarker.mockReturnValueOnce(pins[0]).mockReturnValueOnce(pins[1])
       mocks.selectSuggestion.mockResolvedValue({ details: googleDetails, viewport: null })
-      const { search, state } = setup()
+      const { search } = setup()
 
       await search.select(googleItem)
       await search.select(googleItem)
@@ -262,7 +273,7 @@ describe('useMapSearch', () => {
 
       search.dismiss()
       expect(pins[1]!.setMap).toHaveBeenCalledWith(null)
-      expect(state.selectedPlace.value).toBeNull()
+      expect(search.selectedPlace.value).toBeNull()
     })
 
     it('removes the pin when a saved place is chosen afterwards', async () => {
@@ -287,46 +298,44 @@ describe('useMapSearch', () => {
 
     it('notifies, and leaves no stale card, when the Google lookup fails', async () => {
       mocks.selectSuggestion.mockResolvedValue(null)
-      const { search, state } = setup()
-      state.selectedPlace.value = googleDetails
-      state.selectedSavedLocation.value = createMockLocation()
+      const { search } = setup()
+      search.selectedPlace.value = googleDetails
+      search.selectedSavedLocation.value = createMockLocation()
 
       await search.select(googleItem)
 
       expect(mocks.notifyError).toHaveBeenCalledWith('Could not load details for that place')
-      expect(state.selectedPlace.value).toBeNull()
-      expect(state.selectedSavedLocation.value).toBeNull()
-      expect(state.placeDetailsLoading.value).toBe(false)
+      expect(search.selectedPlace.value).toBeNull()
+      expect(search.selectedSavedLocation.value).toBeNull()
+      expect(search.placeDetailsLoading.value).toBe(false)
       expect(mocks.createMarker).not.toHaveBeenCalled()
     })
 
     it('ignores a Google result that finishes after the selection was dismissed', async () => {
       const pending = deferred<unknown>()
       mocks.selectSuggestion.mockReturnValue(pending.promise)
-      const { search, state } = setup()
+      const { search } = setup()
 
       const selecting = search.select(googleItem)
-      expect(state.placeDetailsLoading.value).toBe(true)
+      expect(search.placeDetailsLoading.value).toBe(true)
       search.dismiss()
       pending.resolve({ details: googleDetails, viewport: null })
       await selecting
 
-      expect(state.selectedPlace.value).toBeNull()
+      expect(search.selectedPlace.value).toBeNull()
       expect(mocks.createMarker).not.toHaveBeenCalled()
     })
 
     it('does nothing without a map', async () => {
-      const state = {
-        selectedType: ref<LocationType | null>(null),
-        selectedPlace: ref<GooglePlaceDetails | null>(null),
-        selectedSavedLocation: ref<Location | null>(null),
-        placeDetailsLoading: ref(false),
-      }
       let search!: ReturnType<typeof useMapSearch>
       mount(
         defineComponent({
           setup() {
-            search = useMapSearch({ getMap: () => null, ...state, onLocationsUpdated: vi.fn() })
+            search = useMapSearch({
+              getMap: () => null,
+              selectedType: ref(null),
+              onLocationsUpdated: vi.fn(),
+            })
             return () => null
           },
         })
@@ -350,9 +359,163 @@ describe('useMapSearch', () => {
     expect(pin.setMap).toHaveBeenCalledWith(null)
     expect(mocks.resetSession).toHaveBeenCalled()
   })
+})
 
-  it('exposes getPlaceDetails for the POI click flow', () => {
+describe('useMapSearch selectPlaceId', () => {
+  const poiA: GooglePlaceDetails = { ...googleDetails, placeId: 'a', name: 'POI A' }
+  const poiB: GooglePlaceDetails = { ...googleDetails, placeId: 'b', name: 'POI B' }
+
+  beforeEach(() => {
+    vi.stubGlobal('useNotificationsStore', () => ({ error: mocks.notifyError }))
+    vi.stubGlobal('google', { maps: { Size: vi.fn(), Point: vi.fn() } })
+    savedLocations.value = []
+    Object.values(mocks).forEach((m) => m.mockReset())
+    mocks.fetchLocations.mockResolvedValue([])
+    mocks.fetchSuggestions.mockResolvedValue([])
+    mocks.createMarker.mockImplementation(() => ({ setMap: vi.fn() }))
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+  })
+
+  it('shows the place, pans to the click position and creates no pin', async () => {
+    mocks.getPlaceDetails.mockResolvedValue(googleDetails)
+    const { search, map } = setup()
+    const position = { lat: 5, lng: 6 }
+
+    const pending = search.selectPlaceId('g1', position)
+    expect(search.placeDetailsLoading.value).toBe(true)
+    await pending
+
+    expect(mocks.getPlaceDetails).toHaveBeenCalledWith('g1')
+    expect(search.selectedPlace.value).toEqual(googleDetails)
+    expect(search.placeDetailsLoading.value).toBe(false)
+    expect(map.panTo).toHaveBeenCalledWith(position)
+    expect(mocks.createMarker).not.toHaveBeenCalled()
+  })
+
+  it('falls back to the place coordinates when no position is given', async () => {
+    mocks.getPlaceDetails.mockResolvedValue(googleDetails)
+    const { search, map } = setup()
+
+    await search.selectPlaceId('g1')
+
+    expect(map.panTo).toHaveBeenCalledWith({ lat: 1, lng: 2 })
+  })
+
+  it('notifies and shows no card when details are unavailable', async () => {
+    mocks.getPlaceDetails.mockResolvedValue(null)
+    const { search, map } = setup()
+
+    await search.selectPlaceId('g1', { lat: 5, lng: 6 })
+
+    expect(mocks.notifyError).toHaveBeenCalledWith('Could not load details for that place')
+    expect(search.selectedPlace.value).toBeNull()
+    expect(search.placeDetailsLoading.value).toBe(false)
+    expect(map.panTo).not.toHaveBeenCalled()
+  })
+
+  it('does nothing without a map', async () => {
+    let search!: ReturnType<typeof useMapSearch>
+    mount(
+      defineComponent({
+        setup() {
+          search = useMapSearch({
+            getMap: () => null,
+            selectedType: ref(null),
+            onLocationsUpdated: vi.fn(),
+          })
+          return () => null
+        },
+      })
+    )
+
+    await search.selectPlaceId('g1')
+
+    expect(mocks.getPlaceDetails).not.toHaveBeenCalled()
+  })
+
+  it('ignores a superseded click that resolves last', async () => {
+    const a = deferred<GooglePlaceDetails | null>()
+    const b = deferred<GooglePlaceDetails | null>()
+    mocks.getPlaceDetails.mockReturnValueOnce(a.promise).mockReturnValueOnce(b.promise)
+    const { search, map } = setup()
+
+    const first = search.selectPlaceId('a', { lat: 1, lng: 1 })
+    const second = search.selectPlaceId('b', { lat: 2, lng: 2 })
+
+    b.resolve(poiB)
+    await second
+    expect(search.selectedPlace.value).toEqual(poiB)
+    expect(search.placeDetailsLoading.value).toBe(false)
+
+    // A resolves last and must not touch anything
+    a.resolve(null)
+    await first
+    expect(search.selectedPlace.value).toEqual(poiB)
+    expect(mocks.notifyError).not.toHaveBeenCalled()
+    expect(map.panTo).toHaveBeenCalledTimes(1)
+    expect(map.panTo).toHaveBeenCalledWith({ lat: 2, lng: 2 })
+  })
+
+  it('keeps the loading flag for the newer click when the older one resolves first', async () => {
+    const a = deferred<GooglePlaceDetails | null>()
+    const b = deferred<GooglePlaceDetails | null>()
+    mocks.getPlaceDetails.mockReturnValueOnce(a.promise).mockReturnValueOnce(b.promise)
     const { search } = setup()
-    expect(search.getPlaceDetails).toBe(mocks.getPlaceDetails)
+
+    const first = search.selectPlaceId('a')
+    const second = search.selectPlaceId('b')
+
+    a.resolve(poiA)
+    await first
+    expect(search.placeDetailsLoading.value).toBe(true)
+    expect(search.selectedPlace.value).toBeNull()
+
+    b.resolve(poiB)
+    await second
+    expect(search.selectedPlace.value).toEqual(poiB)
+    expect(search.placeDetailsLoading.value).toBe(false)
+  })
+
+  it('is superseded by a search-result selection', async () => {
+    const a = deferred<GooglePlaceDetails | null>()
+    mocks.getPlaceDetails.mockReturnValue(a.promise)
+    const { search } = setup()
+    const location = createMockLocation({ id: 's' })
+
+    const click = search.selectPlaceId('a')
+    await search.select({
+      kind: 'saved',
+      key: 'saved:s',
+      label: location.name,
+      description: '',
+      locationType: location.type,
+      location,
+    })
+    a.resolve(poiA)
+    await click
+
+    expect(search.selectedSavedLocation.value).toEqual(location)
+    expect(search.selectedPlace.value).toMatchObject({ name: location.name })
+    expect(mocks.notifyError).not.toHaveBeenCalled()
+  })
+
+  it('ignores a click that resolves after dismiss', async () => {
+    const a = deferred<GooglePlaceDetails | null>()
+    mocks.getPlaceDetails.mockReturnValue(a.promise)
+    const { search, map } = setup()
+
+    const click = search.selectPlaceId('a')
+    search.dismiss()
+    expect(search.placeDetailsLoading.value).toBe(false)
+    a.resolve(poiA)
+    await click
+
+    expect(search.selectedPlace.value).toBeNull()
+    expect(map.panTo).not.toHaveBeenCalled()
+    expect(mocks.notifyError).not.toHaveBeenCalled()
   })
 })

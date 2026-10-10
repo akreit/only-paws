@@ -18,9 +18,6 @@ const SEARCH_DEBOUNCE_MS = 300
 export interface UseMapSearchOptions {
   getMap: () => google.maps.Map | null
   selectedType: Ref<LocationType | null>
-  selectedPlace: Ref<GooglePlaceDetails | null>
-  selectedSavedLocation: Ref<Location | null>
-  placeDetailsLoading: Ref<boolean>
   /** Called whenever the saved-location list was refreshed by the latest request. */
   onLocationsUpdated: () => void
 }
@@ -30,13 +27,16 @@ export interface UseMapSearchOptions {
  * dropdown model, selection handling and the temporary search-result pin.
  */
 export function useMapSearch(options: UseMapSearchOptions) {
-  const { getMap, selectedType, selectedPlace, selectedSavedLocation, placeDetailsLoading } =
-    options
+  const { getMap, selectedType } = options
   const { fetchLocations, locations } = useLocations()
   const { createMarker } = useMap()
   const notifications = useNotificationsStore()
   const { placesUnavailable, fetchSuggestions, selectSuggestion, getPlaceDetails, resetSession } =
     usePlacesSearch()
+
+  const selectedPlace = ref<GooglePlaceDetails | null>(null)
+  const selectedSavedLocation = ref<Location | null>(null)
+  const placeDetailsLoading = ref(false)
 
   const query = ref('')
   const suggestions = ref<PlaceSuggestion[]>([])
@@ -103,6 +103,11 @@ export function useMapSearch(options: UseMapSearchOptions) {
     debouncedSearch()
   })
 
+  // Re-run under the new category filter (and refresh the open dropdown)
+  watch(selectedType, () => {
+    void runSearch()
+  })
+
   function clearMarker() {
     searchMarker?.setMap(null)
     searchMarker = null
@@ -117,13 +122,31 @@ export function useMapSearch(options: UseMapSearchOptions) {
     clearMarker()
   }
 
+  /**
+   * Shared guarded flow for Google lookups: dismisses the current selection, shows the
+   * loading state and resolves to the result, or null if superseded or unavailable.
+   */
+  async function loadGooglePlace<T>(load: () => Promise<T | null>): Promise<T | null> {
+    dismiss()
+    const run = selectRun
+    placeDetailsLoading.value = true
+    const result = await load()
+    if (run !== selectRun) return null
+    placeDetailsLoading.value = false
+
+    if (!result) {
+      notifications.error('Could not load details for that place')
+      return null
+    }
+    return result
+  }
+
   async function select(item: SearchResultItem) {
     const map = getMap()
     if (!map) return
 
-    dismiss()
-
     if (item.kind === 'saved') {
+      dismiss()
       const { location } = item
       selectedSavedLocation.value = location
       selectedPlace.value = locationToPlaceDetails(location)
@@ -132,16 +155,8 @@ export function useMapSearch(options: UseMapSearchOptions) {
       return
     }
 
-    const run = selectRun
-    placeDetailsLoading.value = true
-    const result = await selectSuggestion(item.suggestion)
-    if (run !== selectRun) return
-    placeDetailsLoading.value = false
-
-    if (!result) {
-      notifications.error('Could not load details for that place')
-      return
-    }
+    const result = await loadGooglePlace(() => selectSuggestion(item.suggestion))
+    if (!result) return
 
     const { details, viewport } = result
     selectedPlace.value = details
@@ -161,6 +176,21 @@ export function useMapSearch(options: UseMapSearchOptions) {
     })
   }
 
+  /** Opens details for a Google POI clicked on the map (no search pin: the POI is already shown). */
+  async function selectPlaceId(
+    placeId: string,
+    position?: google.maps.LatLng | google.maps.LatLngLiteral | null
+  ) {
+    const map = getMap()
+    if (!map) return
+
+    const details = await loadGooglePlace(() => getPlaceDetails(placeId))
+    if (!details) return
+
+    selectedPlace.value = details
+    map.panTo(position ?? { lat: details.latitude, lng: details.longitude })
+  }
+
   onBeforeUnmount(() => {
     clearMarker()
     resetSession()
@@ -171,11 +201,12 @@ export function useMapSearch(options: UseMapSearchOptions) {
     model,
     loading,
     placesUnavailable,
+    selectedPlace,
+    selectedSavedLocation,
+    placeDetailsLoading,
     select,
+    selectPlaceId,
     dismiss,
-    clearMarker,
-    runSearch,
     refreshLocations,
-    getPlaceDetails,
   }
 }

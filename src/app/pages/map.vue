@@ -113,12 +113,7 @@
 </template>
 
 <script setup lang="ts">
-import {
-  LocationType,
-  type CreateLocationInput,
-  type Location,
-  type GooglePlaceDetails,
-} from '~/types'
+import { LocationType, type CreateLocationInput, type Location } from '~/types'
 import { LOCATION_TYPE_LABELS, LOCATION_TYPE_ICONS } from '~/utils/constants'
 import { getMarkerIcon, toGoogleIcon } from '~/utils/map-markers'
 import {
@@ -133,16 +128,12 @@ import AddLocationForm from '~/components/location/AddLocationForm.vue'
 import MapPlacePreviewCard from '~/components/location/MapPlacePreviewCard.vue'
 
 const { isSignedIn } = useAuth()
-const notifications = useNotificationsStore()
 const { locations, loading, error: locationsError } = useLocations()
 const { initializeMap, createMarker, mapStore } = useMap()
 
 const mapContainer = ref<HTMLElement>()
 const showAddModal = ref(false)
 const selectedType = ref<LocationType | null>(null)
-const selectedPlace = ref<GooglePlaceDetails | null>(null)
-const placeDetailsLoading = ref(false)
-const selectedSavedLocation = ref<Location | null>(null)
 
 let mapInstance: google.maps.Map | null = null
 const markers: google.maps.Marker[] = []
@@ -151,11 +142,9 @@ let mapClickListener: google.maps.MapsEventListener | null = null
 const search = useMapSearch({
   getMap: () => mapInstance,
   selectedType,
-  selectedPlace,
-  selectedSavedLocation,
-  placeDetailsLoading,
   onLocationsUpdated: updateMarkers,
 })
+const { selectedPlace, selectedSavedLocation, placeDetailsLoading } = search
 
 const showLegend = ref(false)
 
@@ -236,48 +225,24 @@ function bindPlaceClickListener() {
 
   mapClickListener?.remove()
   mapClickListener = mapInstance.addListener('click', (event: google.maps.MapMouseEvent) => {
-    void handleMapClick(event)
+    handleMapClick(event)
   })
 }
 
-async function handleMapClick(event: google.maps.MapMouseEvent) {
-  if (!mapInstance) return
-
+function handleMapClick(event: google.maps.MapMouseEvent) {
   const placeClickEvent = event as google.maps.MapMouseEvent & {
     placeId?: string
     stop?: () => void
   }
+  const { placeId } = placeClickEvent
 
-  if (!placeClickEvent.placeId) {
+  if (!placeId) {
     search.dismiss()
     return
   }
 
   placeClickEvent.stop?.()
-  search.dismiss()
-  placeDetailsLoading.value = true
-
-  try {
-    const place = await search.getPlaceDetails(placeClickEvent.placeId)
-
-    if (!place) {
-      selectedPlace.value = null
-      notifications.error('Could not load details for that place')
-      return
-    }
-
-    selectedPlace.value = place
-
-    if (event.latLng) {
-      mapInstance.panTo(event.latLng)
-    }
-  } catch (error) {
-    console.error('Failed to load place details:', error)
-    selectedPlace.value = null
-    notifications.error('Failed to load place details')
-  } finally {
-    placeDetailsLoading.value = false
-  }
+  void search.selectPlaceId(placeId, event.latLng)
 }
 
 function updateMarkers() {
@@ -305,8 +270,6 @@ function updateMarkers() {
 
 function toggleFilter(type: LocationType) {
   selectedType.value = selectedType.value === type ? null : type
-  // Refresh results (and the open dropdown) under the new filter
-  void search.runSearch()
 }
 
 async function handleAddSelectedPlace() {

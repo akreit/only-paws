@@ -79,7 +79,7 @@
       </div>
     </div>
 
-    <div class="mt-5 rounded-xl bg-blue-50 p-3 text-sm text-blue-900">
+    <div v-if="!existingLocationId" class="mt-5 rounded-xl bg-blue-50 p-3 text-sm text-blue-900">
       Add this place with its Google Maps details, then choose the dog-friendly features that
       matter.
     </div>

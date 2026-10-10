@@ -82,3 +82,15 @@ describe('getMarkerIcon', () => {
     expect(getMarkerIcon(value as string)).toEqual(getMarkerIcon(LocationType.OTHER))
   })
 })
+
+describe('getSearchResultMarkerIcon', () => {
+  it('is a distinct blue pin with the standard geometry', async () => {
+    const { getSearchResultMarkerIcon, getMarkerIcon } = await import('~/utils/map-markers')
+    const icon = getSearchResultMarkerIcon()
+
+    expect(icon.url.startsWith('data:image/svg+xml')).toBe(true)
+    expect(icon.size).toEqual(getMarkerIcon('PARK').size)
+    expect(icon.anchor).toEqual(getMarkerIcon('PARK').anchor)
+    expect(icon.url).not.toBe(getMarkerIcon('OTHER').url)
+  })
+})

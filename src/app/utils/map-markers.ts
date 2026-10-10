@@ -81,3 +81,23 @@ export function getMarkerIcon(
     glyph: MARKER_GLYPHS[resolved],
   }
 }
+
+const SEARCH_RESULT_COLOR = '#2563eb'
+
+/** Round white badge with a blue ring; unmistakable next to the category pins. */
+export function getSearchResultMarkerIcon(): MarkerIconDefinition {
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${MARKER_WIDTH}" height="${MARKER_HEIGHT}" viewBox="0 0 ${MARKER_WIDTH} ${MARKER_HEIGHT}">` +
+    `<path d="${PIN_PATH}" fill="${SEARCH_RESULT_COLOR}" stroke="#ffffff" stroke-width="2.5" stroke-linejoin="round"/>` +
+    `<circle cx="18" cy="18" r="9" fill="#ffffff"/>` +
+    `<circle cx="18" cy="18" r="4" fill="${SEARCH_RESULT_COLOR}"/>` +
+    `</svg>`
+
+  return {
+    url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
+    size: { width: MARKER_WIDTH, height: MARKER_HEIGHT },
+    anchor: { ...MARKER_ANCHOR },
+    color: SEARCH_RESULT_COLOR,
+    glyph: '',
+  }
+}

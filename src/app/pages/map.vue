@@ -7,11 +7,12 @@
     <div class="absolute left-4 right-4 top-4 z-10">
       <!-- Search & Filters -->
       <div class="max-w-md rounded-lg bg-white p-4 shadow-lg">
-        <Input
+        <MapSearchBox
           v-model="searchQuery"
-          type="text"
-          placeholder="Search locations..."
-          @input="handleSearch"
+          :model="searchModel"
+          :loading="searchLoading"
+          :places-unavailable="placesUnavailable"
+          @select="handleSearchSelect"
         />
 
         <div class="mt-3 flex flex-wrap gap-2">
@@ -90,7 +91,7 @@
       :is-signed-in="!!isSignedIn"
       :existing-location-id="existingLocationForSelectedPlace?.id"
       @add="handleAddSelectedPlace"
-      @dismiss="selectedPlace = null"
+      @dismiss="dismissSelectedPlace"
       @open-location="handleOpenLocation"
     />
   </div>
@@ -120,12 +121,24 @@ import {
 } from '~/types'
 import { debounce } from '~/utils/helpers'
 import { LOCATION_TYPE_LABELS, LOCATION_TYPE_ICONS } from '~/utils/constants'
-import { getMarkerIcon, type MarkerIconDefinition } from '~/utils/map-markers'
+import {
+  getMarkerIcon,
+  getSearchResultMarkerIcon,
+  type MarkerIconDefinition,
+} from '~/utils/map-markers'
+import {
+  buildSearchDropdown,
+  isSearchableQuery,
+  locationToPlaceDetails,
+  type PlaceSuggestion,
+  type SearchResultItem,
+} from '~/utils/map-search'
 import {
   buildLocationInputFromGooglePlace,
   inferLocationTypeFromGoogleTypes,
 } from '~/utils/google-place'
-import Input from '~/components/ui/Input.vue'
+import MapSearchBox from '~/components/map/MapSearchBox.vue'
+import { usePlacesSearch } from '~/composables/usePlacesSearch'
 import LoadingSpinner from '~/components/ui/LoadingSpinner.vue'
 import Modal from '~/components/ui/Modal.vue'
 import AddLocationForm from '~/components/location/AddLocationForm.vue'
@@ -135,6 +148,7 @@ const { isSignedIn } = useAuth()
 const notifications = useNotificationsStore()
 const { fetchLocations, locations, loading, error: locationsError } = useLocations()
 const { initializeMap, createMarker, mapStore, getPlaceDetails } = useMap()
+const { placesUnavailable, fetchSuggestions, selectSuggestion, resetSession } = usePlacesSearch()
 
 const mapContainer = ref<HTMLElement>()
 const showAddModal = ref(false)
@@ -142,9 +156,16 @@ const searchQuery = ref('')
 const selectedType = ref<LocationType | null>(null)
 const selectedPlace = ref<GooglePlaceDetails | null>(null)
 const placeDetailsLoading = ref(false)
+const selectedSavedLocation = ref<Location | null>(null)
+const suggestions = ref<PlaceSuggestion[]>([])
+const searchLoading = ref(false)
+// Query the dropdown results belong to; empty means "not searching"
+const activeSearch = ref('')
 
 let mapInstance: google.maps.Map | null = null
 const markers: google.maps.Marker[] = []
+let searchMarker: google.maps.Marker | null = null
+let searchRun = 0
 let mapClickListener: google.maps.MapsEventListener | null = null
 
 const showLegend = ref(false)
@@ -158,7 +179,15 @@ const locationTypes = computed(() => {
   }))
 })
 
+const searchModel = computed(() =>
+  buildSearchDropdown(activeSearch.value ? locations.value : [], suggestions.value)
+)
+
 const existingLocationForSelectedPlace = computed<Location | null>(() => {
+  if (selectedSavedLocation.value) {
+    return selectedSavedLocation.value
+  }
+
   if (!selectedPlace.value?.placeId) {
     return null
   }
@@ -170,6 +199,10 @@ const existingLocationForSelectedPlace = computed<Location | null>(() => {
 })
 
 const selectedPlaceLocationType = computed(() => {
+  if (selectedSavedLocation.value) {
+    return selectedSavedLocation.value.type
+  }
+
   return selectedPlace.value
     ? inferLocationTypeFromGoogleTypes(selectedPlace.value.types)
     : LocationType.OTHER
@@ -187,6 +220,8 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   mapClickListener?.remove()
+  clearSearchMarker()
+  resetSession()
 })
 
 function resolveCenter(): Promise<void> {
@@ -231,11 +266,13 @@ async function handleMapClick(event: google.maps.MapMouseEvent) {
   }
 
   if (!placeClickEvent.placeId) {
-    selectedPlace.value = null
+    dismissSelectedPlace()
     return
   }
 
   placeClickEvent.stop?.()
+  clearSearchMarker()
+  selectedSavedLocation.value = null
   placeDetailsLoading.value = true
 
   try {
@@ -265,7 +302,7 @@ async function loadLocations() {
   try {
     await fetchLocations({
       type: selectedType.value || undefined,
-      search: searchQuery.value || undefined,
+      search: isSearchableQuery(searchQuery.value) ? searchQuery.value.trim() : undefined,
     })
     updateMarkers()
   } catch (error) {
@@ -305,13 +342,100 @@ function updateMarkers() {
   })
 }
 
-const handleSearch = debounce(() => {
-  loadLocations()
-}, 500)
+async function runSearch() {
+  const run = ++searchRun
+  const query = searchQuery.value.trim()
+
+  if (!isSearchableQuery(query)) {
+    // Cleared (or too short): restore the normal listing
+    activeSearch.value = ''
+    suggestions.value = []
+    searchLoading.value = false
+    resetSession()
+    await loadLocations()
+    return
+  }
+
+  activeSearch.value = query
+  searchLoading.value = true
+
+  const [, found] = await Promise.all([loadLocations(), fetchSuggestions(query)])
+
+  if (run !== searchRun) return
+  suggestions.value = found
+  searchLoading.value = false
+}
+
+const debouncedSearch = debounce(() => {
+  void runSearch()
+}, 300)
+
+watch(searchQuery, () => {
+  // Drop stale results right away so they never sit next to a different query
+  if (!isSearchableQuery(searchQuery.value)) {
+    activeSearch.value = ''
+    suggestions.value = []
+  }
+  debouncedSearch()
+})
+
+function clearSearchMarker() {
+  searchMarker?.setMap(null)
+  searchMarker = null
+}
+
+function dismissSelectedPlace() {
+  selectedPlace.value = null
+  selectedSavedLocation.value = null
+  clearSearchMarker()
+}
+
+async function handleSearchSelect(item: SearchResultItem) {
+  if (!mapInstance) return
+
+  if (item.kind === 'saved') {
+    clearSearchMarker()
+    const { location } = item
+    selectedSavedLocation.value = location
+    selectedPlace.value = locationToPlaceDetails(location)
+    mapInstance.panTo({ lat: location.latitude, lng: location.longitude })
+    mapInstance.setZoom(16)
+    return
+  }
+
+  placeDetailsLoading.value = true
+  selectedSavedLocation.value = null
+  const result = await selectSuggestion(item.suggestion)
+  placeDetailsLoading.value = false
+
+  if (!result) {
+    notifications.error('Could not load details for that place')
+    return
+  }
+
+  const { details, viewport } = result
+  selectedPlace.value = details
+
+  if (viewport) {
+    mapInstance.fitBounds(viewport)
+  } else {
+    mapInstance.panTo({ lat: details.latitude, lng: details.longitude })
+    mapInstance.setZoom(16)
+  }
+
+  clearSearchMarker()
+  searchMarker = createMarker({
+    map: mapInstance,
+    position: { lat: details.latitude, lng: details.longitude },
+    title: details.name,
+    icon: toGoogleIcon(getSearchResultMarkerIcon()),
+  })
+}
 
 function toggleFilter(type: LocationType) {
   selectedType.value = selectedType.value === type ? null : type
-  loadLocations()
+  // Refresh results (and the open dropdown) under the new filter
+  void runSearch()
 }
 
 async function handleAddSelectedPlace() {
@@ -326,13 +450,13 @@ async function handleAddSelectedPlace() {
 }
 
 async function handleOpenLocation(locationId: string) {
-  selectedPlace.value = null
+  dismissSelectedPlace()
   await navigateTo(`/locations/${locationId}`)
 }
 
 async function handleLocationAdded(location: Location) {
   showAddModal.value = false
-  selectedPlace.value = null
+  dismissSelectedPlace()
   await loadLocations()
   await navigateTo(`/locations/${location.id}`)
 }

@@ -6,6 +6,13 @@ import { useNotificationsStore } from '~/stores/notifications'
 import { LOCATIONS_UNAVAILABLE_MESSAGE, useLocations } from '~/composables/useLocations'
 
 const fetchMock = vi.fn()
+// Spy on the real implementation so the bypass behaviour is still exercised end to end
+const markChanged = vi.hoisted(() => vi.fn())
+vi.mock('~/utils/locations-cache', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('~/utils/locations-cache')>()
+  markChanged.mockImplementation(actual.markLocationsChanged)
+  return { ...actual, markLocationsChanged: markChanged }
+})
 // Each test starts an hour later so the module-level CDN bypass window never leaks between tests
 let testClock = 0
 
@@ -15,6 +22,7 @@ describe('useLocations.fetchLocations', () => {
     vi.setSystemTime(new Date('2030-01-01T00:00:00Z').getTime() + testClock++ * 3_600_000)
     setActivePinia(createPinia())
     fetchMock.mockReset()
+    markChanged.mockClear()
     vi.stubGlobal('$fetch', fetchMock)
     vi.stubGlobal('computed', computed)
     vi.stubGlobal('useLocationsStore', useLocationsStore)
@@ -77,6 +85,7 @@ describe('useLocations.fetchLocations', () => {
     await deleteLocation('1')
     expect(locations.value).toHaveLength(0)
     expect(useNotificationsStore().notifications).toHaveLength(2)
+    expect(markChanged).toHaveBeenCalledTimes(2)
   })
 
   it('sets error and notifies when single fetch, create or delete fails', async () => {
@@ -144,6 +153,7 @@ describe('useLocations.fetchLocations', () => {
       const locs = useLocations()
       fetchMock.mockRejectedValue(new Error('x'))
       await expect(locs.createLocation({} as never)).rejects.toBeDefined()
+      expect(markChanged).not.toHaveBeenCalled()
 
       fetchMock.mockResolvedValue([])
       await locs.fetchLocations()

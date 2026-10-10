@@ -1,4 +1,5 @@
 import type { Location } from '~/types'
+import { markLocationsChanged } from '~/utils/locations-cache'
 
 interface FavoriteEntry {
   locationId: string
@@ -41,6 +42,7 @@ export function useFavorites() {
         body: { locationId },
       })
 
+      markLocationsChanged()
       userStore.addFavorite(locationId)
       notifications.success('Added to favorites!')
     } catch (error) {
@@ -59,6 +61,7 @@ export function useFavorites() {
         method: 'DELETE',
       })
 
+      markLocationsChanged()
       userStore.removeFavorite(locationId)
       notifications.success('Removed from favorites!')
     } catch (error) {

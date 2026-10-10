@@ -1,6 +1,5 @@
 import { setOptions, importLibrary } from '@googlemaps/js-api-loader'
 
-let isLoaded = false
 // Shared so concurrent callers (page setup, map init, geocoding) trigger a single load
 let loadPromise: Promise<typeof google.maps> | null = null
 
@@ -9,25 +8,16 @@ export function useMap() {
   const mapStore = useMapStore()
 
   function loadGoogleMaps(): Promise<typeof google.maps> {
-    if (isLoaded && window.google?.maps) {
-      return Promise.resolve(window.google.maps)
-    }
-    if (loadPromise) return loadPromise
+    if (!loadPromise) setOptions({ key: config.public.googleMapsApiKey as string })
 
-    setOptions({ key: config.public.googleMapsApiKey as string })
-
-    loadPromise = importLibrary('maps').then(
-      () => {
-        isLoaded = true
-        return window.google.maps
-      },
+    return (loadPromise ??= importLibrary('maps').then(
+      () => window.google.maps,
       (err) => {
         console.error('[Maps] Failed to import libraries:', err)
         loadPromise = null
         throw err
       }
-    )
-    return loadPromise
+    ))
   }
 
   /** Warm the Places library (e.g. on search focus); never throws. */
@@ -35,6 +25,34 @@ export function useMap() {
     void loadGoogleMaps()
       .then(() => importLibrary('places'))
       .catch(() => {})
+  }
+
+  // Where the map started; a fix is only applied if nothing has moved the map since
+  let initialMap: { map: google.maps.Map; center: google.maps.LatLng | null } | null = null
+
+  /**
+   * Request the user's position once, in parallel with Maps loading. A fix arriving before the
+   * map exists becomes its initial center; a later one only pans a map that hasn't moved.
+   */
+  function centerOnUserOnce({ isActive }: { isActive: () => boolean }): void {
+    if (!navigator.geolocation) return
+
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        if (!isActive()) return
+        const position = { lat: coords.latitude, lng: coords.longitude }
+        if (!initialMap) {
+          mapStore.setCenter(position)
+          return
+        }
+        const { map, center } = initialMap
+        if (!map.getCenter()?.equals(center)) return
+        mapStore.setCenter(position)
+        map.panTo(position)
+      },
+      () => {},
+      { timeout: 5000, maximumAge: 5 * 60 * 1000 }
+    )
   }
 
   async function initializeMap(element: HTMLElement): Promise<google.maps.Map> {
@@ -59,6 +77,7 @@ export function useMap() {
       )
     }
 
+    initialMap = { map, center: map.getCenter() ?? null }
     mapStore.setMapInstance(map)
 
     map.addListener('center_changed', () => {
@@ -140,6 +159,7 @@ export function useMap() {
     loadGoogleMaps,
     prefetchPlaces,
     initializeMap,
+    centerOnUserOnce,
     createMarker,
     geocodeAddress,
     reverseGeocode,

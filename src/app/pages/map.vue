@@ -130,7 +130,7 @@ import MapPlacePreviewCard from '~/components/location/MapPlacePreviewCard.vue'
 
 const { isSignedIn } = useAuth()
 const { locations, loading, error: locationsError } = useLocations()
-const { loadGoogleMaps, initializeMap, createMarker, prefetchPlaces, mapStore } = useMap()
+const { loadGoogleMaps, initializeMap, centerOnUserOnce, createMarker, prefetchPlaces } = useMap()
 
 const mapContainer = ref<HTMLElement>()
 const showAddModal = ref(false)
@@ -140,7 +140,6 @@ let mapInstance: google.maps.Map | null = null
 const markers: google.maps.Marker[] = []
 let mapClickListener: google.maps.MapsEventListener | null = null
 let mounted = false
-let userMovedMap = false
 
 // Start downloading the Maps JS as early as possible (before hydration finishes)
 if (import.meta.client) {
@@ -198,7 +197,7 @@ onMounted(async () => {
   mounted = true
   // Locations, geolocation and the Maps script load in parallel; none blocks the others
   void search.refreshLocations()
-  locateUser()
+  centerOnUserOnce({ isActive: () => mounted })
   await initMap()
   // Locations may have arrived before the map existed, when drawing was a no-op
   updateMarkers()
@@ -209,30 +208,11 @@ onBeforeUnmount(() => {
   mapClickListener?.remove()
 })
 
-function locateUser() {
-  if (!navigator.geolocation) return
-
-  navigator.geolocation.getCurrentPosition(
-    ({ coords }) => {
-      if (!mounted || userMovedMap) return
-      const position = { lat: coords.latitude, lng: coords.longitude }
-      mapStore.setCenter(position)
-      mapInstance?.panTo(position)
-    },
-    () => {},
-    { timeout: 5000, maximumAge: 5 * 60 * 1000 }
-  )
-}
-
 async function initMap() {
   if (!mapContainer.value) return
 
   try {
     mapInstance = await initializeMap(mapContainer.value)
-    // A late geolocation fix must not yank the map away from a user who is already panning
-    mapInstance.addListener('dragstart', () => {
-      userMovedMap = true
-    })
     bindPlaceClickListener()
   } catch (error) {
     console.error('Failed to initialize map:', error)

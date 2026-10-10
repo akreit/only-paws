@@ -7,6 +7,8 @@ import { useFavorites } from '~/composables/useFavorites'
 import { createMockLocation } from '../../fixtures/factories'
 
 const fetchMock = vi.fn()
+const markChanged = vi.hoisted(() => vi.fn())
+vi.mock('~/utils/locations-cache', () => ({ markLocationsChanged: markChanged }))
 
 function lastNotificationType() {
   return useNotificationsStore().notifications.at(-1)?.type
@@ -16,6 +18,7 @@ describe('useFavorites', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     fetchMock.mockReset()
+    markChanged.mockReset()
     vi.stubGlobal('$fetch', fetchMock)
     vi.stubGlobal('ref', ref)
     vi.stubGlobal('computed', computed)
@@ -81,6 +84,7 @@ describe('useFavorites', () => {
     })
     expect(isFavorite('a')).toBe(true)
     expect(lastNotificationType()).toBe('success')
+    expect(markChanged).toHaveBeenCalledTimes(1)
   })
 
   it('addFavorite toasts and leaves the store untouched on failure', async () => {
@@ -90,6 +94,7 @@ describe('useFavorites', () => {
     await expect(addFavorite('a')).rejects.toThrow('nope')
     expect(isFavorite('a')).toBe(false)
     expect(lastNotificationType()).toBe('error')
+    expect(markChanged).not.toHaveBeenCalled()
   })
 
   it('removeFavorite DELETEs and removes the card from favoriteLocations', async () => {
@@ -108,6 +113,7 @@ describe('useFavorites', () => {
     expect(fetchMock).toHaveBeenLastCalledWith('/api/favorites/a', { method: 'DELETE' })
     expect(favoriteLocations.value).toEqual([b])
     expect(lastNotificationType()).toBe('success')
+    expect(markChanged).toHaveBeenCalledTimes(1)
   })
 
   it('removeFavorite toasts and keeps the favorite on failure', async () => {
@@ -118,6 +124,7 @@ describe('useFavorites', () => {
     await expect(removeFavorite('a')).rejects.toThrow('nope')
     expect(isFavorite('a')).toBe(true)
     expect(lastNotificationType()).toBe('error')
+    expect(markChanged).not.toHaveBeenCalled()
   })
 
   it('toggleFavorite adds then removes', async () => {

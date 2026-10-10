@@ -58,7 +58,7 @@ npm run prisma:seed
 - Clerk handles auth.
 - Use `requireAuth(event)` for protected server routes.
 - Users are synced into the local `User` table via `POST /api/users/sync`.
-- On the client, `useAuthSync()` keeps Clerk state aligned with `useAuthStore()` / `useUserStore()`, and `src/app/middleware/auth.ts` protects signed-in pages.
+- On the client, `useAuthSync()` (client plugin `plugins/auth-sync.client.ts`) syncs the Clerk user into `useUserStore()`, the single owner of the signed-in DB user and favorites; `src/app/middleware/auth.ts` protects signed-in pages.
 
 ## Testing expectations
 

@@ -15,11 +15,11 @@ export function useFavorites() {
     loading.value = true
 
     try {
-      const favorites = await $fetch<FavoriteEntry[]>('/api/favorites')
-      const locationIds = favorites.map((f) => f.locationId)
-      userStore.setFavoriteLocationCache(favorites.map((f) => f.location))
-      userStore.setFavorites(locationIds)
-      return locationIds
+      // Concurrent callers share one request; each handles a failure itself below
+      return await userStore.loadFavorites(async () => {
+        const entries = await $fetch<FavoriteEntry[]>('/api/favorites')
+        return entries.map((e) => e.location)
+      })
     } catch (error) {
       if (silent) {
         console.error('Failed to fetch favorites:', error)

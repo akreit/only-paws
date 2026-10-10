@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useUserStore } from '~/stores/user'
 import type { User } from '~/types'
@@ -25,23 +25,12 @@ describe('user store', () => {
     expect(store.user).toBeNull()
   })
 
-  it('updateUser merges into the current user', () => {
+  it('setFavorites stores locations, ids and marks them loaded', () => {
     const store = useUserStore()
-    store.setUser({ id: 'u1', bio: 'a' } as User)
-    store.updateUser({ bio: 'b', homeCity: 'Oslo' })
-    expect(store.user).toMatchObject({ id: 'u1', bio: 'b', homeCity: 'Oslo' })
-  })
-
-  it('updateUser is a no-op without a user', () => {
-    const store = useUserStore()
-    store.updateUser({ bio: 'x' })
-    expect(store.user).toBeNull()
-  })
-
-  it('setFavorites stores ids and marks them loaded', () => {
-    const store = useUserStore()
-    store.setFavorites(['a'])
+    const loc = createMockLocation({ id: 'a' })
+    store.setFavorites([loc])
     expect(store.favorites).toEqual(['a'])
+    expect(store.favoriteLocationCache).toEqual([loc])
     expect(store.favoritesLoaded).toBe(true)
   })
 
@@ -71,18 +60,10 @@ describe('user store', () => {
     expect(store.favoritesLoaded).toBe(false)
   })
 
-  it('setFavoriteLocationCache stores locations', () => {
-    const store = useUserStore()
-    const loc = createMockLocation({ id: 'a' })
-    store.setFavoriteLocationCache([loc])
-    expect(store.favoriteLocationCache).toEqual([loc])
-  })
-
   it('reset clears user, favorites, cache and loaded flag', () => {
     const store = useUserStore()
     store.setUser({ id: 'u1' } as User)
-    store.setFavorites(['a'])
-    store.setFavoriteLocationCache([createMockLocation({ id: 'a' })])
+    store.setFavorites([createMockLocation({ id: 'a' })])
 
     store.reset()
 
@@ -90,5 +71,72 @@ describe('user store', () => {
     expect(store.favorites).toEqual([])
     expect(store.favoriteLocationCache).toEqual([])
     expect(store.favoritesLoaded).toBe(false)
+  })
+
+  describe('loadFavorites', () => {
+    function deferred<T>() {
+      let resolve!: (v: T) => void
+      let reject!: (e: unknown) => void
+      const promise = new Promise<T>((res, rej) => {
+        resolve = res
+        reject = rej
+      })
+      return { promise, resolve, reject }
+    }
+
+    it('shares one in-flight request, then starts a new one once settled', async () => {
+      const store = useUserStore()
+      const d = deferred<ReturnType<typeof createMockLocation>[]>()
+      const fetcher = vi.fn(() => d.promise)
+
+      const p1 = store.loadFavorites(fetcher)
+      store.loadFavorites(fetcher)
+      expect(fetcher).toHaveBeenCalledTimes(1)
+
+      d.resolve([createMockLocation({ id: 'a' })])
+      expect(await p1).toEqual(['a'])
+      expect(store.favorites).toEqual(['a'])
+
+      await store.loadFavorites(async () => [])
+      expect(store.favorites).toEqual([])
+    })
+
+    it('starts a new request after a failure', async () => {
+      const store = useUserStore()
+      await expect(store.loadFavorites(() => Promise.reject(new Error('x')))).rejects.toThrow('x')
+      const fetcher = vi.fn(async () => [])
+      await store.loadFavorites(fetcher)
+      expect(fetcher).toHaveBeenCalledTimes(1)
+      expect(store.favoritesLoaded).toBe(true)
+    })
+
+    it('drops a response that arrives after reset', async () => {
+      const store = useUserStore()
+      const d = deferred<ReturnType<typeof createMockLocation>[]>()
+      const p = store.loadFavorites(() => d.promise)
+
+      store.reset()
+      d.resolve([createMockLocation({ id: 'a' })])
+      await p
+
+      expect(store.favorites).toEqual([])
+      expect(store.favoriteLocationCache).toEqual([])
+      expect(store.favoritesLoaded).toBe(false)
+    })
+
+    it('reset during a request lets the next load start a fresh one', async () => {
+      const store = useUserStore()
+      const old = deferred<ReturnType<typeof createMockLocation>[]>()
+      const oldP = store.loadFavorites(() => old.promise)
+      store.reset()
+
+      const fetcher = vi.fn(async () => [createMockLocation({ id: 'b' })])
+      await store.loadFavorites(fetcher)
+      expect(fetcher).toHaveBeenCalledTimes(1)
+
+      old.resolve([createMockLocation({ id: 'a' })])
+      await oldP
+      expect(store.favorites).toEqual(['b'])
+    })
   })
 })

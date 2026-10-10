@@ -27,8 +27,8 @@ npm run test:e2e
 npm run test:e2e:ui
 
 npm run prisma:generate
-npm run prisma:migrate
-npx prisma db push
+npm run prisma:migrate        # prisma migrate dev --name <change>
+npm run prisma:migrate:deploy # apply committed migrations (CI / production)
 npm run prisma:seed
 ```
 
@@ -50,6 +50,8 @@ npm run prisma:seed
 - Do **not** use `~/` aliases in server code.
 - Prisma is configured via `src/server/utils/prisma.ts` with `@prisma/adapter-pg`.
 - `prisma/schema.prisma` has no datasource `url`; use `prisma.config.ts`.
+- Schema changes go through migrations: edit `schema.prisma`, run `npx prisma migrate dev --name <change>`, and commit the generated `prisma/migrations/*` folder. Do not use `prisma db push` on shared databases.
+- `npm run build` runs `scripts/migrate-deploy.mjs`, which applies `prisma migrate deploy` only when `VERCEL_ENV === 'production'` (using `DATABASE_URL_UNPOOLED`, falling back to `DATABASE_URL`). Previews share the production database, so they never migrate; keep migrations backward-compatible with the previous deploy.
 
 ## Auth
 

@@ -113,7 +113,8 @@ The application will be available at `http://localhost:3000`
 - `npm run test:unit` - Run unit tests
 - `npm run test:e2e` - Run end-to-end tests
 - `npm run prisma:generate` - Generate Prisma client
-- `npm run prisma:migrate` - Run database migrations
+- `npm run prisma:migrate` - Create/apply a dev migration (`prisma migrate dev --name <change>`)
+- `npm run prisma:migrate:deploy` - Apply committed migrations (non-interactive)
 - `npm run prisma:studio` - Open Prisma Studio
 
 ## Project Structure
@@ -183,7 +184,17 @@ only-paws/
 
 1. Create PostgreSQL database on Render
 2. Update `DATABASE_URL` in Vercel
-3. Run migrations: `npm run prisma:migrate:deploy`
+3. Migrations are applied automatically by `npm run build` on **production** Vercel builds only (`VERCEL_ENV=production`, via `scripts/migrate-deploy.mjs`, using `DATABASE_URL_UNPOOLED` if set). Preview builds do not migrate, since they share the production database.
+
+### Database migrations
+
+- Change `prisma/schema.prisma`, then run `npm run prisma:migrate -- --name <change>` and commit the generated `prisma/migrations/*` folder.
+- Don't use `prisma db push` against shared databases.
+- **One-time production baseline:** the production database predates migrations. Before the first production deploy that includes `prisma/migrations`, mark the baseline as applied against the production DB (use the unpooled URL):
+
+  ```bash
+  DATABASE_URL="<production unpooled url>" npx prisma migrate resolve --applied 20261010072107_init
+  ```
 
 ## Contributing
 

@@ -27,12 +27,16 @@ export function useMap() {
       .catch(() => {})
   }
 
-  // Where the map started; a fix is only applied if nothing has moved the map since
-  let initialMap: { map: google.maps.Map; center: google.maps.LatLng | null } | null = null
+  // Where the map started; a fix is only applied if nothing has moved or zoomed the map since
+  let initialMap: {
+    map: google.maps.Map
+    center: google.maps.LatLng | undefined
+    zoom: number | undefined
+  } | null = null
 
   /**
    * Request the user's position once, in parallel with Maps loading. A fix arriving before the
-   * map exists becomes its initial center; a later one only pans a map that hasn't moved.
+   * map exists becomes its initial center; a later one only pans a map that hasn't moved or zoomed.
    */
   function centerOnUserOnce({ isActive }: { isActive: () => boolean }): void {
     if (!navigator.geolocation) return
@@ -45,9 +49,9 @@ export function useMap() {
           mapStore.setCenter(position)
           return
         }
-        const { map, center } = initialMap
-        if (!map.getCenter()?.equals(center)) return
-        mapStore.setCenter(position)
+        const { map, center, zoom } = initialMap
+        if ((center && !map.getCenter()?.equals(center)) || map.getZoom() !== zoom) return
+        // center_changed keeps the store in sync
         map.panTo(position)
       },
       () => {},
@@ -77,7 +81,7 @@ export function useMap() {
       )
     }
 
-    initialMap = { map, center: map.getCenter() ?? null }
+    initialMap = { map, center: map.getCenter(), zoom: map.getZoom() }
     mapStore.setMapInstance(map)
 
     map.addListener('center_changed', () => {

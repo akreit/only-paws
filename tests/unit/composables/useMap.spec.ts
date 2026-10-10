@@ -19,15 +19,27 @@ const fakeMaps = vi.hoisted(() => {
     lng,
     equals: (o) => !!o && o.lat === lat && o.lng === lng,
   })
-  const state = { map: null as null | { center: Center; panTo: ReturnType<typeof vi.fn> } }
+  const state = {
+    map: null as null | {
+      center: Center | undefined
+      zoom: number
+      panTo: ReturnType<typeof vi.fn>
+    },
+    // Simulates a map whose center is not yet defined at creation
+    noStartCenter: false,
+  }
   class FakeMap {
-    center = latLng(12.9716, 77.5946)
+    center: Center | undefined = state.noStartCenter ? undefined : latLng(12.9716, 77.5946)
+    zoom = 13
     panTo = vi.fn()
     constructor() {
       state.map = this
     }
     getCenter() {
       return this.center
+    }
+    getZoom() {
+      return this.zoom
     }
     addListener = vi.fn()
   }
@@ -94,6 +106,7 @@ describe('useMap', () => {
       })
       vi.stubGlobal('navigator', { geolocation: { getCurrentPosition } })
       fakeMaps.state.map = null
+      fakeMaps.state.noStartCenter = false
     })
 
     it('requests one fix with the agreed options', async () => {
@@ -113,7 +126,7 @@ describe('useMap', () => {
       expect(() => centerOnUserOnce({ isActive: () => true })).not.toThrow()
     })
 
-    it('pans and sets the store center when the map has not moved', async () => {
+    it('pans (store follows via center_changed) when the map has not moved or zoomed', async () => {
       const { centerOnUserOnce, initializeMap, mapStore } = await freshUseMap()
       await initializeMap(document.createElement('div'))
       centerOnUserOnce({ isActive: () => true })
@@ -121,7 +134,32 @@ describe('useMap', () => {
       deliverFix()
 
       expect(fakeMaps.state.map!.panTo).toHaveBeenCalledWith(position)
-      expect(mapStore.center).toEqual(position)
+      // No direct store write: the center_changed listener owns store sync
+      expect(mapStore.center).toBeNull()
+    })
+
+    it('does not pan when only the zoom changed before the fix arrived', async () => {
+      const { centerOnUserOnce, initializeMap } = await freshUseMap()
+      await initializeMap(document.createElement('div'))
+      centerOnUserOnce({ isActive: () => true })
+      // +/- zoom keeps the center
+      fakeMaps.state.map!.zoom = 15
+
+      deliverFix()
+
+      expect(fakeMaps.state.map!.panTo).not.toHaveBeenCalled()
+    })
+
+    it('still pans when the start center was undefined and the zoom is unchanged', async () => {
+      fakeMaps.state.noStartCenter = true
+      const { centerOnUserOnce, initializeMap } = await freshUseMap()
+      await initializeMap(document.createElement('div'))
+      centerOnUserOnce({ isActive: () => true })
+      fakeMaps.state.map!.center = fakeMaps.latLng(12.9716, 77.5946)
+
+      deliverFix()
+
+      expect(fakeMaps.state.map!.panTo).toHaveBeenCalledWith(position)
     })
 
     it('does not pan when the map center changed before the fix arrived', async () => {

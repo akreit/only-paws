@@ -2,6 +2,7 @@ import { isProxy, ref } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { useMapStore } from '~/stores/map'
+import { PLACE_DETAIL_FIELDS } from '~/utils/google-place'
 import { usePlacesSearch } from '~/composables/usePlacesSearch'
 
 const importLibraryMock = vi.hoisted(() => vi.fn())
@@ -61,13 +62,12 @@ describe('usePlacesSearch', () => {
     fetchAutocompleteSuggestions.mockResolvedValue({
       suggestions: [{ placePrediction: p.placePrediction }, { placePrediction: null }],
     })
-    const { fetchSuggestions, placesUnavailable, searching } = usePlacesSearch()
+    const { fetchSuggestions, placesUnavailable } = usePlacesSearch()
 
     const result = await fetchSuggestions('par')
 
     expect(result).toEqual([{ placeId: 'p1', mainText: 'Main p1', secondaryText: 'Town' }])
     expect(placesUnavailable.value).toBe(false)
-    expect(searching.value).toBe(false)
   })
 
   it('falls back to full text when main/secondary text are missing', async () => {
@@ -112,22 +112,12 @@ describe('usePlacesSearch', () => {
     expect(a).not.toBe(b)
   })
 
-  it('biases toward the current map bounds', async () => {
-    fetchAutocompleteSuggestions.mockResolvedValue({ suggestions: [] })
-    const bounds = { id: 'bounds' } as unknown as google.maps.LatLngBounds
-    useMapStore().setBounds(bounds)
-    useMapStore().setCenter({ lat: 1, lng: 2 })
-
-    await usePlacesSearch().fetchSuggestions('ab')
-
-    expect(fetchAutocompleteSuggestions.mock.calls[0]![0].locationBias).toEqual(bounds)
-  })
-
-  it('passes LatLngBounds to Google as a plain literal, not the store proxy', async () => {
+  it('passes map bounds to Google as a plain literal, not a store proxy', async () => {
     fetchAutocompleteSuggestions.mockResolvedValue({ suggestions: [] })
     const literal = { north: 13, south: 12, east: 78, west: 77 }
     const bounds = { toJSON: () => literal } as unknown as google.maps.LatLngBounds
-    useMapStore().setBounds(bounds)
+    useMapStore().setMapInstance({ getBounds: () => bounds } as unknown as google.maps.Map)
+    useMapStore().setCenter({ lat: 1, lng: 2 })
 
     await usePlacesSearch().fetchSuggestions('ab')
 
@@ -136,28 +126,22 @@ describe('usePlacesSearch', () => {
     expect(isProxy(bias)).toBe(false)
   })
 
-  it('uses the map instance bounds, then a center circle, then no bias', async () => {
+  it('falls back to a center circle, then to no bias', async () => {
     fetchAutocompleteSuggestions.mockResolvedValue({ suggestions: [] })
     const store = useMapStore()
     const { fetchSuggestions } = usePlacesSearch()
 
-    const instanceBounds = { id: 'inst' }
-    store.setMapInstance({ getBounds: () => instanceBounds } as unknown as google.maps.Map)
-    await fetchSuggestions('ab')
-    expect(fetchAutocompleteSuggestions.mock.calls[0]![0].locationBias).toEqual(instanceBounds)
-
     store.setMapInstance({ getBounds: () => undefined } as unknown as google.maps.Map)
     store.setCenter({ lat: 5, lng: 6 })
     await fetchSuggestions('ab')
-    expect(fetchAutocompleteSuggestions.mock.calls[1]![0].locationBias).toEqual({
-      center: { lat: 5, lng: 6 },
-      radius: 20000,
-    })
+    const bias = fetchAutocompleteSuggestions.mock.calls[0]![0].locationBias
+    expect(bias).toEqual({ center: { lat: 5, lng: 6 }, radius: 20000 })
+    expect(isProxy(bias)).toBe(false)
 
     store.setMapInstance(null)
-    useMapStore().$patch({ center: null })
+    store.$patch({ center: null })
     await fetchSuggestions('ab')
-    expect(fetchAutocompleteSuggestions.mock.calls[2]![0].locationBias).toBeUndefined()
+    expect(fetchAutocompleteSuggestions.mock.calls[1]![0].locationBias).toBeUndefined()
   })
 
   it('returns [] and flags unavailable when the request fails, then recovers', async () => {
@@ -174,11 +158,10 @@ describe('usePlacesSearch', () => {
 
   it('returns [] and flags unavailable when the library fails to load', async () => {
     importLibraryMock.mockRejectedValue(new Error('load failed'))
-    const { fetchSuggestions, placesUnavailable, searching } = usePlacesSearch()
+    const { fetchSuggestions, placesUnavailable } = usePlacesSearch()
 
     expect(await fetchSuggestions('ab')).toEqual([])
     expect(placesUnavailable.value).toBe(true)
-    expect(searching.value).toBe(false)
   })
 
   it('fetches the required fields on selection and maps the place', async () => {
@@ -190,8 +173,22 @@ describe('usePlacesSearch', () => {
     const result = await selectSuggestion(s!)
 
     expect(fetchFields).toHaveBeenCalledWith({
-      fields: ['id', 'displayName', 'formattedAddress', 'location', 'viewport', 'types'],
+      fields: PLACE_DETAIL_FIELDS,
     })
+    expect(PLACE_DETAIL_FIELDS).toEqual([
+      'id',
+      'displayName',
+      'formattedAddress',
+      'location',
+      'viewport',
+      'types',
+      'websiteURI',
+      'nationalPhoneNumber',
+      'regularOpeningHours',
+      'rating',
+      'userRatingCount',
+      'googleMapsURI',
+    ])
     expect(result?.details).toMatchObject({
       placeId: 'p1',
       name: 'Name p1',
@@ -218,5 +215,61 @@ describe('usePlacesSearch', () => {
     const { selectSuggestion } = usePlacesSearch()
 
     expect(await selectSuggestion({ placeId: 'zzz', mainText: 'x', secondaryText: '' })).toBeNull()
+  })
+
+  describe('getPlaceDetails', () => {
+    it('loads full details for a place id (POI click)', async () => {
+      importLibraryMock.mockResolvedValue({
+        Place: function (opts: unknown) {
+          placeCtor(opts)
+          return {
+            fetchFields,
+            id: 'poi',
+            displayName: 'Vet',
+            formattedAddress: 'Road 1',
+            location: { lat: () => 3, lng: () => 4 },
+            types: ['veterinary_care'],
+            websiteURI: 'https://vet.example',
+            nationalPhoneNumber: '99',
+            regularOpeningHours: { weekdayDescriptions: ['Mon: 9-5'] },
+            rating: 4,
+            userRatingCount: 7,
+            googleMapsURI: 'https://maps.example/vet',
+          }
+        },
+      })
+
+      const details = await usePlacesSearch().getPlaceDetails('poi')
+
+      expect(placeCtor).toHaveBeenCalledWith({ id: 'poi' })
+      expect(fetchFields).toHaveBeenCalledWith({ fields: PLACE_DETAIL_FIELDS })
+      expect(details).toMatchObject({
+        placeId: 'poi',
+        name: 'Vet',
+        website: 'https://vet.example',
+        phone: '99',
+        openingHours: ['Mon: 9-5'],
+        rating: 4,
+        userRatingCount: 7,
+        googleMapsUrl: 'https://maps.example/vet',
+      })
+    })
+
+    it('returns null when the place has no location or the lookup fails', async () => {
+      importLibraryMock.mockResolvedValue({
+        Place: function () {
+          return { fetchFields }
+        },
+      })
+      expect(await usePlacesSearch().getPlaceDetails('x')).toBeNull()
+
+      fetchFields.mockRejectedValue(new Error('denied'))
+      importLibraryMock.mockResolvedValue({
+        Place: function () {
+          return { fetchFields }
+        },
+      })
+      expect(await usePlacesSearch().getPlaceDetails('x')).toBeNull()
+    })
   })
 })

@@ -2,7 +2,6 @@
   <div ref="root" class="relative w-full">
     <input
       :id="`${uid}-input`"
-      ref="inputEl"
       :value="modelValue"
       type="text"
       role="combobox"
@@ -96,7 +95,6 @@ const emit = defineEmits<{
 const uid = useId()
 const listboxId = `${uid}-listbox`
 const root = ref<HTMLElement>()
-const inputEl = ref<HTMLInputElement>()
 const open = ref(false)
 const activeIndex = ref(-1)
 

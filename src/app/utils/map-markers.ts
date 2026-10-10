@@ -54,17 +54,25 @@ export function resolveMarkerType(type: LocationType | string | null | undefined
     : LocationType.OTHER
 }
 
+function pinSvg(fill: string, inner: string, outline = ''): string {
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${MARKER_WIDTH}" height="${MARKER_HEIGHT}" viewBox="0 0 ${MARKER_WIDTH} ${MARKER_HEIGHT}">` +
+    outline +
+    `<path d="${PIN_PATH}" fill="${fill}" stroke="#ffffff" stroke-width="2.5" stroke-linejoin="round"/>` +
+    inner +
+    `</svg>`
+  )
+}
+
 export function buildMarkerSvg(type: LocationType | string | null | undefined): string {
   const resolved = resolveMarkerType(type)
   const color = LOCATION_TYPE_COLORS[resolved]
 
   // Dark outer edge + white ring keep the pin readable on light and dark maps
-  return (
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${MARKER_WIDTH}" height="${MARKER_HEIGHT}" viewBox="0 0 ${MARKER_WIDTH} ${MARKER_HEIGHT}">` +
-    `<path d="${PIN_PATH}" fill="none" stroke="${OUTLINE_COLOR}" stroke-opacity=".85" stroke-width="${OUTLINE_WIDTH}" stroke-linejoin="round"/>` +
-    `<path d="${PIN_PATH}" fill="${color}" stroke="#ffffff" stroke-width="2.5" stroke-linejoin="round"/>` +
-    `<g transform="translate(6.6 6.6) scale(.9)" fill="#ffffff">${MARKER_GLYPHS[resolved]}</g>` +
-    `</svg>`
+  return pinSvg(
+    color,
+    `<g transform="translate(6.6 6.6) scale(.9)" fill="#ffffff">${MARKER_GLYPHS[resolved]}</g>`,
+    `<path d="${PIN_PATH}" fill="none" stroke="${OUTLINE_COLOR}" stroke-opacity=".85" stroke-width="${OUTLINE_WIDTH}" stroke-linejoin="round"/>`
   )
 }
 
@@ -84,14 +92,12 @@ export function getMarkerIcon(
 
 const SEARCH_RESULT_COLOR = '#2563eb'
 
-/** Round white badge with a blue ring; unmistakable next to the category pins. */
+/** Temporary pin for a Google search result. */
 export function getSearchResultMarkerIcon(): MarkerIconDefinition {
-  const svg =
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${MARKER_WIDTH}" height="${MARKER_HEIGHT}" viewBox="0 0 ${MARKER_WIDTH} ${MARKER_HEIGHT}">` +
-    `<path d="${PIN_PATH}" fill="${SEARCH_RESULT_COLOR}" stroke="#ffffff" stroke-width="2.5" stroke-linejoin="round"/>` +
-    `<circle cx="18" cy="18" r="9" fill="#ffffff"/>` +
-    `<circle cx="18" cy="18" r="4" fill="${SEARCH_RESULT_COLOR}"/>` +
-    `</svg>`
+  const svg = pinSvg(
+    SEARCH_RESULT_COLOR,
+    `<circle cx="18" cy="18" r="9" fill="#ffffff"/><circle cx="18" cy="18" r="4" fill="${SEARCH_RESULT_COLOR}"/>`
+  )
 
   return {
     url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
@@ -99,5 +105,13 @@ export function getSearchResultMarkerIcon(): MarkerIconDefinition {
     anchor: { ...MARKER_ANCHOR },
     color: SEARCH_RESULT_COLOR,
     glyph: '',
+  }
+}
+
+export function toGoogleIcon(icon: MarkerIconDefinition): google.maps.Icon {
+  return {
+    url: icon.url,
+    scaledSize: new google.maps.Size(icon.size.width, icon.size.height),
+    anchor: new google.maps.Point(icon.anchor.x, icon.anchor.y),
   }
 }

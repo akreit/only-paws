@@ -54,6 +54,15 @@ describe('useProfile', () => {
     expect(useNotificationsStore().notifications[0].type).toBe('success')
   })
 
+  it('saveProfile and fetchProfile share the single user with the store', async () => {
+    fetchMock.mockResolvedValue({ id: 'u1', bio: 'hi' })
+    const { saveProfile } = useProfile()
+
+    await saveProfile({ bio: 'hi' })
+
+    expect(useUserStore().user).toEqual({ id: 'u1', bio: 'hi' })
+  })
+
   it('saveProfile notifies and rethrows on failure', async () => {
     fetchMock.mockRejectedValue(new Error('nope'))
     const { saveProfile, profile } = useProfile()

@@ -32,6 +32,12 @@ export function useFavorites() {
     }
   }
 
+  // Skips the request when favorites were already loaded (e.g. by useAuthSync)
+  async function ensureFavorites(options: { silent?: boolean } = {}) {
+    if (userStore.favoritesLoaded) return userStore.favorites
+    return fetchFavorites(options)
+  }
+
   async function addFavorite(locationId: string) {
     loading.value = true
 
@@ -86,6 +92,7 @@ export function useFavorites() {
     ),
     isFavorite: userStore.isFavorite,
     fetchFavorites,
+    ensureFavorites,
     addFavorite,
     removeFavorite,
     toggleFavorite,

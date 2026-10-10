@@ -3,23 +3,24 @@ import { ref } from 'vue'
 import type { Location, User } from '~/types'
 
 export const useUserStore = defineStore('user', () => {
-  const profile = ref<User | null>(null)
+  const user = ref<User | null>(null)
   const favorites = ref<string[]>([])
   const favoriteLocationCache = ref<Location[]>([])
-  const loading = ref(false)
+  const favoritesLoaded = ref(false)
 
-  function setProfile(user: User | null) {
-    profile.value = user
+  function setUser(userData: User | null) {
+    user.value = userData
   }
 
-  function updateProfile(updates: Partial<User>) {
-    if (profile.value) {
-      profile.value = { ...profile.value, ...updates }
+  function updateUser(updates: Partial<User>) {
+    if (user.value) {
+      user.value = { ...user.value, ...updates }
     }
   }
 
   function setFavorites(locationIds: string[]) {
     favorites.value = locationIds
+    favoritesLoaded.value = true
   }
 
   function setFavoriteLocationCache(locations: Location[]) {
@@ -39,21 +40,29 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
+  function reset() {
+    user.value = null
+    favorites.value = []
+    favoriteLocationCache.value = []
+    favoritesLoaded.value = false
+  }
+
   function isFavorite(locationId: string): boolean {
     return favorites.value.includes(locationId)
   }
 
   return {
-    profile,
+    user,
     favorites,
     favoriteLocationCache,
-    loading,
-    setProfile,
-    updateProfile,
+    favoritesLoaded,
+    setUser,
+    updateUser,
     setFavorites,
     setFavoriteLocationCache,
     addFavorite,
     removeFavorite,
+    reset,
     isFavorite,
   }
 })

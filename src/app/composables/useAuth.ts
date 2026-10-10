@@ -4,24 +4,16 @@ import type { User } from '~/types'
 export function useAuthSync() {
   const { isSignedIn, isLoaded } = useClerkAuth()
   const { user: clerkUser } = useClerkUser()
-  const authStore = useAuthStore()
   const userStore = useUserStore()
   const notifications = useNotificationsStore()
   const { fetchFavorites } = useFavorites()
 
   const loading = ref(false)
 
-  function clearUserState() {
-    authStore.clearUser()
-    userStore.setProfile(null)
-    userStore.setFavorites([])
-    userStore.setFavoriteLocationCache([])
-  }
-
   // Sync Clerk user with our database
   async function syncUser() {
     if (!clerkUser.value) {
-      clearUserState()
+      userStore.reset()
       return
     }
 
@@ -31,8 +23,7 @@ export function useAuthSync() {
         method: 'POST',
       })
 
-      authStore.setUser(response)
-      userStore.setProfile(response)
+      userStore.setUser(response)
     } catch (error) {
       console.error('Failed to sync user:', error)
       notifications.error('Failed to load user profile')
@@ -57,7 +48,7 @@ export function useAuthSync() {
       if (signedIn && user) {
         await syncUser()
       } else {
-        clearUserState()
+        userStore.reset()
       }
     },
     { immediate: true }
@@ -66,7 +57,7 @@ export function useAuthSync() {
   return {
     isSignedIn,
     isLoaded,
-    user: computed(() => authStore.user),
+    user: computed(() => userStore.user),
     loading,
     syncUser,
   }

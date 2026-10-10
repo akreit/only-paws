@@ -69,6 +69,37 @@ describe('useFavorites', () => {
     expect(console.error).toHaveBeenCalled()
   })
 
+  it('ensureFavorites fetches when favorites are not loaded yet', async () => {
+    const a = createMockLocation({ id: 'a' })
+    fetchMock.mockResolvedValue([{ locationId: 'a', location: a }])
+    const { ensureFavorites, favorites } = useFavorites()
+
+    await ensureFavorites({ silent: true })
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(favorites.value).toEqual(['a'])
+    expect(useUserStore().favoritesLoaded).toBe(true)
+  })
+
+  it('ensureFavorites skips the request when already loaded', async () => {
+    useUserStore().setFavorites(['a'])
+    const { ensureFavorites } = useFavorites()
+
+    expect(await ensureFavorites()).toEqual(['a'])
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('ensureFavorites fetches again after a reset', async () => {
+    useUserStore().setFavorites(['a'])
+    useUserStore().reset()
+    fetchMock.mockResolvedValue([])
+    const { ensureFavorites } = useFavorites()
+
+    await ensureFavorites()
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
   it('addFavorite POSTs, updates the store and toasts success', async () => {
     fetchMock.mockResolvedValue({})
     const { addFavorite, isFavorite } = useFavorites()

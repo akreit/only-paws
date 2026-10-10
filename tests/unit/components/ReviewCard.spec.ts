@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { computed } from 'vue'
 import { mount } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
-import { useAuthStore } from '~/stores/auth'
+import { useUserStore } from '~/stores/user'
 import ReviewCard from '~/components/location/ReviewCard.vue'
 import type { Review, User } from '~/types'
 
@@ -29,20 +29,20 @@ describe('ReviewCard', () => {
     setActivePinia(createPinia())
     useAuthSync.mockReset()
     vi.stubGlobal('computed', computed)
-    vi.stubGlobal('useAuthStore', useAuthStore)
+    vi.stubGlobal('useUserStore', useUserStore)
     vi.stubGlobal('useAuthSync', useAuthSync)
     vi.stubGlobal('useReviews', () => ({ deleteReview: vi.fn() }))
   })
 
   it('shows delete for the author without registering another auth sync', () => {
-    useAuthStore().setUser({ id: 'u1' } as User)
+    useUserStore().setUser({ id: 'u1' } as User)
 
     expect(mountCard().find('button').exists()).toBe(true)
     expect(useAuthSync).not.toHaveBeenCalled()
   })
 
   it('hides delete for other users', () => {
-    useAuthStore().setUser({ id: 'u2' } as User)
+    useUserStore().setUser({ id: 'u2' } as User)
 
     expect(mountCard().find('button').exists()).toBe(false)
   })

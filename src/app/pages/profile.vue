@@ -344,7 +344,7 @@ import LoadingSpinner from '~/components/ui/LoadingSpinner.vue'
 
 const { isSignedIn, isLoaded } = useAuth()
 const { user } = useUser()
-const { fetchFavorites, favoriteLocations } = useFavorites()
+const { ensureFavorites, favoriteLocations } = useFavorites()
 const { profile, saving, fetchProfile, saveProfile } = useProfile()
 
 const loading = ref(true)
@@ -366,7 +366,7 @@ watch(
     if (!loaded) return
     if (signedIn) {
       loading.value = true
-      await Promise.all([loadUserData(), fetchFavorites({ silent: true }).catch(() => {})])
+      await Promise.all([loadUserData(), ensureFavorites({ silent: true }).catch(() => {})])
     } else {
       userLocations.value = []
       userReviews.value = []

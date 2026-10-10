@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { ref, computed, watch, effectScope, type EffectScope } from 'vue'
 import { setActivePinia, createPinia } from 'pinia'
-import { useAuthStore } from '~/stores/auth'
 import { useUserStore } from '~/stores/user'
 import { useNotificationsStore } from '~/stores/notifications'
 import { useFavorites } from '~/composables/useFavorites'
@@ -48,7 +47,6 @@ describe('useAuthSync', () => {
     vi.stubGlobal('ref', ref)
     vi.stubGlobal('computed', computed)
     vi.stubGlobal('watch', watch)
-    vi.stubGlobal('useAuthStore', useAuthStore)
     vi.stubGlobal('useUserStore', useUserStore)
     vi.stubGlobal('useNotificationsStore', useNotificationsStore)
     vi.stubGlobal('useFavorites', useFavorites)
@@ -77,7 +75,23 @@ describe('useAuthSync', () => {
     })
     expect(fetchMock).toHaveBeenNthCalledWith(2, '/api/favorites')
     expect(useUserStore().favorites).toEqual(['l1'])
-    expect(useUserStore().profile).toMatchObject({ id: 'u1' })
+    expect(useUserStore().user).toMatchObject({ id: 'u1' })
+    expect(useUserStore().favoritesLoaded).toBe(true)
+  })
+
+  it('exposes the single store user', async () => {
+    mockApi()
+    isSignedIn.value = true
+    clerkUser.value = clerk
+    let sync: ReturnType<typeof useAuthSync> | undefined
+    scope = effectScope()
+    scope.run(() => {
+      sync = useAuthSync()
+    })
+    await flush()
+
+    expect(sync?.user.value).toBe(useUserStore().user)
+    expect(sync?.user.value).toMatchObject({ id: 'u1' })
   })
 
   it('does not toast when the background favorites load fails', async () => {
@@ -89,7 +103,7 @@ describe('useAuthSync', () => {
     await flush()
 
     expect(useNotificationsStore().notifications).toHaveLength(0)
-    expect(useUserStore().profile).toMatchObject({ id: 'u1' })
+    expect(useUserStore().user).toMatchObject({ id: 'u1' })
   })
 
   it('skips the favorites load and toasts when the sync fails', async () => {
@@ -104,13 +118,15 @@ describe('useAuthSync', () => {
     expect(useNotificationsStore().notifications[0].type).toBe('error')
   })
 
-  it('clears favorites and profile on sign-out', async () => {
+  it('resets user, favorites, cache and loaded flag on sign-out', async () => {
     mockApi([{ locationId: 'l1', location: { id: 'l1' } }])
     isSignedIn.value = true
     clerkUser.value = clerk
     run()
     await flush()
     expect(useUserStore().favorites).toEqual(['l1'])
+    expect(useUserStore().user).toMatchObject({ id: 'u1' })
+    expect(useUserStore().favoriteLocationCache).toHaveLength(1)
 
     isSignedIn.value = false
     clerkUser.value = null
@@ -118,6 +134,7 @@ describe('useAuthSync', () => {
 
     expect(useUserStore().favorites).toEqual([])
     expect(useUserStore().favoriteLocationCache).toEqual([])
-    expect(useUserStore().profile).toBeNull()
+    expect(useUserStore().user).toBeNull()
+    expect(useUserStore().favoritesLoaded).toBe(false)
   })
 })

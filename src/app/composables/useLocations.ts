@@ -1,5 +1,12 @@
 import type { Location, CreateLocationInput, LocationFilters } from '~/types'
 
+export const LOCATIONS_UNAVAILABLE_MESSAGE = 'Saved places are currently unavailable'
+
+function isServiceUnavailable(error: unknown): boolean {
+  const { statusCode, status } = (error ?? {}) as { statusCode?: number; status?: number }
+  return (statusCode ?? status) === 503
+}
+
 export function useLocations() {
   const locationsStore = useLocationsStore()
   const notifications = useNotificationsStore()
@@ -20,6 +27,13 @@ export function useLocations() {
       locationsStore.setLocations(locations)
       return locations
     } catch (error) {
+      if (isServiceUnavailable(error)) {
+        // Database is down: show an inline empty state instead of a toast on every retry
+        locationsStore.setLocations([])
+        locationsStore.setError(LOCATIONS_UNAVAILABLE_MESSAGE)
+        throw error
+      }
+
       const message = 'Failed to fetch locations'
       locationsStore.setError(message)
       notifications.error(message)

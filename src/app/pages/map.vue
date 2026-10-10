@@ -32,6 +32,13 @@
       </div>
     </div>
 
+    <!-- Saved places unavailable (e.g. database down); map stays usable -->
+    <div v-if="locationsError" class="absolute left-4 top-44 z-10 max-w-md" role="status">
+      <div class="rounded-lg bg-amber-50 px-4 py-2 text-sm text-amber-800 shadow-lg">
+        {{ locationsError }}. You can still explore the map.
+      </div>
+    </div>
+
     <!-- Loading Indicator -->
     <div v-if="loading" class="absolute left-1/2 top-20 z-10 -translate-x-1/2 transform">
       <div class="flex items-center gap-2 rounded-lg bg-white px-4 py-2 shadow-lg">
@@ -96,7 +103,7 @@ import MapPlacePreviewCard from '~/components/location/MapPlacePreviewCard.vue'
 
 const { isSignedIn } = useAuth()
 const notifications = useNotificationsStore()
-const { fetchLocations, locations, loading } = useLocations()
+const { fetchLocations, locations, loading, error: locationsError } = useLocations()
 const { initializeMap, createMarker, mapStore, getPlaceDetails } = useMap()
 
 const mapContainer = ref<HTMLElement>()
@@ -230,6 +237,7 @@ async function loadLocations() {
     updateMarkers()
   } catch (error) {
     console.error('Failed to load locations:', error)
+    updateMarkers()
   }
 }
 

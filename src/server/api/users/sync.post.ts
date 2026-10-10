@@ -10,20 +10,22 @@ export default defineEventHandler(async (event) => {
   }
 
   // Find or create user
-  const user = await prisma.user.upsert({
-    where: { clerkUserId },
-    update: {
-      email,
-      username,
-      avatarUrl,
-    },
-    create: {
-      clerkUserId,
-      email,
-      username,
-      avatarUrl,
-    },
-  })
+  const user = await withDatabaseErrorHandling(() =>
+    prisma.user.upsert({
+      where: { clerkUserId },
+      update: {
+        email,
+        username,
+        avatarUrl,
+      },
+      create: {
+        clerkUserId,
+        email,
+        username,
+        avatarUrl,
+      },
+    })
+  )
 
   return user
 })

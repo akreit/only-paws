@@ -8,30 +8,32 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const location = await prisma.location.findUnique({
-    where: { id },
-    include: {
-      photos: {
-        include: {
-          uploader: true,
+  const location = await withDatabaseErrorHandling(() =>
+    prisma.location.findUnique({
+      where: { id },
+      include: {
+        photos: {
+          include: {
+            uploader: true,
+          },
+          orderBy: { createdAt: 'desc' },
         },
-        orderBy: { createdAt: 'desc' },
-      },
-      reviews: {
-        include: {
-          author: true,
+        reviews: {
+          include: {
+            author: true,
+          },
+          orderBy: { createdAt: 'desc' },
         },
-        orderBy: { createdAt: 'desc' },
-      },
-      _count: {
-        select: {
-          reviews: true,
-          photos: true,
-          favorites: true,
+        _count: {
+          select: {
+            reviews: true,
+            photos: true,
+            favorites: true,
+          },
         },
       },
-    },
-  })
+    })
+  )
 
   if (!location) {
     throw createError({

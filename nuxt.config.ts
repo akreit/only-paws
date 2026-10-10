@@ -57,7 +57,9 @@ export default defineNuxtConfig({
 
   nitro: {
     externals: {
-      inline: ['@prisma/client', '@prisma/adapter-pg'],
+      // Inlining breaks the dev server (".prisma/client/default" is not a valid package name),
+      // so only inline for production builds (Vercel ESM/CJS fix).
+      inline: process.env.NODE_ENV === 'production' ? ['@prisma/client', '@prisma/adapter-pg'] : [],
     },
   },
 

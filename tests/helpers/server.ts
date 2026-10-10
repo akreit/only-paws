@@ -1,4 +1,5 @@
 import { vi } from 'vitest'
+import { withDatabaseErrorHandling } from '../../src/server/utils/database'
 
 export function setupServerMocks() {
   const prisma = {
@@ -32,6 +33,7 @@ export function setupServerMocks() {
   vi.stubGlobal('getRouterParam', getRouterParam)
   vi.stubGlobal('createError', createError)
   vi.stubGlobal('defineEventHandler', defineEventHandler)
+  vi.stubGlobal('withDatabaseErrorHandling', withDatabaseErrorHandling)
 
   return {
     prisma,

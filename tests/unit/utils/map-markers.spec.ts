@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { LocationType } from '~/types'
 import { LOCATION_TYPE_COLORS } from '~/utils/constants'
 import {
@@ -80,5 +80,37 @@ describe('getMarkerIcon', () => {
   it.each([undefined, null, '', 'UNKNOWN', 'toString'])('falls back to OTHER for %s', (value) => {
     expect(resolveMarkerType(value as string)).toBe(LocationType.OTHER)
     expect(getMarkerIcon(value as string)).toEqual(getMarkerIcon(LocationType.OTHER))
+  })
+})
+
+describe('getSearchResultMarkerIcon', () => {
+  it('is a distinct blue pin with the standard geometry', async () => {
+    const { getSearchResultMarkerIcon, getMarkerIcon } = await import('~/utils/map-markers')
+    const icon = getSearchResultMarkerIcon()
+
+    expect(icon.url.startsWith('data:image/svg+xml')).toBe(true)
+    expect(icon.size).toEqual(getMarkerIcon('PARK').size)
+    expect(icon.anchor).toEqual(getMarkerIcon('PARK').anchor)
+    expect(icon.url).not.toBe(getMarkerIcon('OTHER').url)
+  })
+})
+
+describe('toGoogleIcon', () => {
+  it('wraps the icon definition in Google Size/Point objects', async () => {
+    const { toGoogleIcon } = await import('~/utils/map-markers')
+    const Size = vi.fn(function (this: object, w: number, h: number) {
+      Object.assign(this, { w, h })
+    })
+    const Point = vi.fn(function (this: object, x: number, y: number) {
+      Object.assign(this, { x, y })
+    })
+    vi.stubGlobal('google', { maps: { Size, Point } })
+
+    const icon = toGoogleIcon(getMarkerIcon(LocationType.PARK))
+
+    expect(icon.url.startsWith(PREFIX)).toBe(true)
+    expect(Size).toHaveBeenCalledWith(MARKER_WIDTH, MARKER_HEIGHT)
+    expect(Point).toHaveBeenCalledWith(MARKER_ANCHOR.x, MARKER_ANCHOR.y)
+    vi.unstubAllGlobals()
   })
 })

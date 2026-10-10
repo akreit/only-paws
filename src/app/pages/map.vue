@@ -7,11 +7,12 @@
     <div class="absolute left-4 right-4 top-4 z-10">
       <!-- Search & Filters -->
       <div class="max-w-md rounded-lg bg-white p-4 shadow-lg">
-        <Input
-          v-model="searchQuery"
-          type="text"
-          placeholder="Search locations..."
-          @input="handleSearch"
+        <MapSearchBox
+          v-model="search.query.value"
+          :model="search.model.value"
+          :loading="search.loading.value"
+          :places-unavailable="search.placesUnavailable.value"
+          @select="search.select"
         />
 
         <div class="mt-3 flex flex-wrap gap-2">
@@ -90,7 +91,7 @@
       :is-signed-in="!!isSignedIn"
       :existing-location-id="existingLocationForSelectedPlace?.id"
       @add="handleAddSelectedPlace"
-      @dismiss="selectedPlace = null"
+      @dismiss="search.dismiss"
       @open-location="handleOpenLocation"
     />
   </div>
@@ -112,40 +113,38 @@
 </template>
 
 <script setup lang="ts">
-import {
-  LocationType,
-  type CreateLocationInput,
-  type Location,
-  type GooglePlaceDetails,
-} from '~/types'
-import { debounce } from '~/utils/helpers'
+import { LocationType, type CreateLocationInput, type Location } from '~/types'
 import { LOCATION_TYPE_LABELS, LOCATION_TYPE_ICONS } from '~/utils/constants'
-import { getMarkerIcon, type MarkerIconDefinition } from '~/utils/map-markers'
+import { getMarkerIcon, toGoogleIcon } from '~/utils/map-markers'
 import {
   buildLocationInputFromGooglePlace,
   inferLocationTypeFromGoogleTypes,
 } from '~/utils/google-place'
-import Input from '~/components/ui/Input.vue'
+import MapSearchBox from '~/components/map/MapSearchBox.vue'
+import { useMapSearch } from '~/composables/useMapSearch'
 import LoadingSpinner from '~/components/ui/LoadingSpinner.vue'
 import Modal from '~/components/ui/Modal.vue'
 import AddLocationForm from '~/components/location/AddLocationForm.vue'
 import MapPlacePreviewCard from '~/components/location/MapPlacePreviewCard.vue'
 
 const { isSignedIn } = useAuth()
-const notifications = useNotificationsStore()
-const { fetchLocations, locations, loading, error: locationsError } = useLocations()
-const { initializeMap, createMarker, mapStore, getPlaceDetails } = useMap()
+const { locations, loading, error: locationsError } = useLocations()
+const { initializeMap, createMarker, mapStore } = useMap()
 
 const mapContainer = ref<HTMLElement>()
 const showAddModal = ref(false)
-const searchQuery = ref('')
 const selectedType = ref<LocationType | null>(null)
-const selectedPlace = ref<GooglePlaceDetails | null>(null)
-const placeDetailsLoading = ref(false)
 
 let mapInstance: google.maps.Map | null = null
 const markers: google.maps.Marker[] = []
 let mapClickListener: google.maps.MapsEventListener | null = null
+
+const search = useMapSearch({
+  getMap: () => mapInstance,
+  selectedType,
+  onLocationsUpdated: updateMarkers,
+})
+const { selectedPlace, selectedSavedLocation, placeDetailsLoading } = search
 
 const showLegend = ref(false)
 
@@ -159,6 +158,10 @@ const locationTypes = computed(() => {
 })
 
 const existingLocationForSelectedPlace = computed<Location | null>(() => {
+  if (selectedSavedLocation.value) {
+    return selectedSavedLocation.value
+  }
+
   if (!selectedPlace.value?.placeId) {
     return null
   }
@@ -170,6 +173,10 @@ const existingLocationForSelectedPlace = computed<Location | null>(() => {
 })
 
 const selectedPlaceLocationType = computed(() => {
+  if (selectedSavedLocation.value) {
+    return selectedSavedLocation.value.type
+  }
+
   return selectedPlace.value
     ? inferLocationTypeFromGoogleTypes(selectedPlace.value.types)
     : LocationType.OTHER
@@ -182,7 +189,7 @@ const selectedPlaceInput = computed<CreateLocationInput | undefined>(() => {
 onMounted(async () => {
   await resolveCenter()
   await initMap()
-  await loadLocations()
+  await search.refreshLocations()
 })
 
 onBeforeUnmount(() => {
@@ -218,68 +225,24 @@ function bindPlaceClickListener() {
 
   mapClickListener?.remove()
   mapClickListener = mapInstance.addListener('click', (event: google.maps.MapMouseEvent) => {
-    void handleMapClick(event)
+    handleMapClick(event)
   })
 }
 
-async function handleMapClick(event: google.maps.MapMouseEvent) {
-  if (!mapInstance) return
-
+function handleMapClick(event: google.maps.MapMouseEvent) {
   const placeClickEvent = event as google.maps.MapMouseEvent & {
     placeId?: string
     stop?: () => void
   }
+  const { placeId } = placeClickEvent
 
-  if (!placeClickEvent.placeId) {
-    selectedPlace.value = null
+  if (!placeId) {
+    search.dismiss()
     return
   }
 
   placeClickEvent.stop?.()
-  placeDetailsLoading.value = true
-
-  try {
-    const place = await getPlaceDetails(mapInstance, placeClickEvent.placeId)
-
-    if (!place) {
-      selectedPlace.value = null
-      notifications.error('Could not load details for that place')
-      return
-    }
-
-    selectedPlace.value = place
-
-    if (event.latLng) {
-      mapInstance.panTo(event.latLng)
-    }
-  } catch (error) {
-    console.error('Failed to load place details:', error)
-    selectedPlace.value = null
-    notifications.error('Failed to load place details')
-  } finally {
-    placeDetailsLoading.value = false
-  }
-}
-
-async function loadLocations() {
-  try {
-    await fetchLocations({
-      type: selectedType.value || undefined,
-      search: searchQuery.value || undefined,
-    })
-    updateMarkers()
-  } catch (error) {
-    console.error('Failed to load locations:', error)
-    updateMarkers()
-  }
-}
-
-function toGoogleIcon(icon: MarkerIconDefinition): google.maps.Icon {
-  return {
-    url: icon.url,
-    scaledSize: new google.maps.Size(icon.size.width, icon.size.height),
-    anchor: new google.maps.Point(icon.anchor.x, icon.anchor.y),
-  }
+  void search.selectPlaceId(placeId, event.latLng)
 }
 
 function updateMarkers() {
@@ -305,13 +268,8 @@ function updateMarkers() {
   })
 }
 
-const handleSearch = debounce(() => {
-  loadLocations()
-}, 500)
-
 function toggleFilter(type: LocationType) {
   selectedType.value = selectedType.value === type ? null : type
-  loadLocations()
 }
 
 async function handleAddSelectedPlace() {
@@ -326,14 +284,14 @@ async function handleAddSelectedPlace() {
 }
 
 async function handleOpenLocation(locationId: string) {
-  selectedPlace.value = null
+  search.dismiss()
   await navigateTo(`/locations/${locationId}`)
 }
 
 async function handleLocationAdded(location: Location) {
   showAddModal.value = false
-  selectedPlace.value = null
-  await loadLocations()
+  search.dismiss()
+  await search.refreshLocations()
   await navigateTo(`/locations/${location.id}`)
 }
 

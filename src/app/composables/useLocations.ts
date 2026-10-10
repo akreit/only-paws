@@ -7,11 +7,22 @@ function isServiceUnavailable(error: unknown): boolean {
   return (statusCode ?? status) === 503
 }
 
+// Shared across callers: only the newest list request may touch the store
+let latestListRequest = 0
+let listAbortController: AbortController | null = null
+
 export function useLocations() {
   const locationsStore = useLocationsStore()
   const notifications = useNotificationsStore()
 
-  async function fetchLocations(filters?: LocationFilters) {
+  /** Resolves to `null` when a newer request superseded this one (nothing is committed). */
+  async function fetchLocations(filters?: LocationFilters): Promise<Location[] | null> {
+    const requestId = ++latestListRequest
+    const isLatest = () => requestId === latestListRequest
+    listAbortController?.abort()
+    const controller = new AbortController()
+    listAbortController = controller
+
     locationsStore.setLoading(true)
     locationsStore.setError(null)
 
@@ -23,10 +34,17 @@ export function useLocations() {
       if (filters?.longitude) query.append('longitude', filters.longitude.toString())
       if (filters?.radiusKm) query.append('radiusKm', filters.radiusKm.toString())
 
-      const locations = await $fetch<Location[]>(`/api/locations?${query.toString()}`)
+      const locations = await $fetch<Location[]>(`/api/locations?${query.toString()}`, {
+        signal: controller.signal,
+      })
+      if (!isLatest()) return null
+
       locationsStore.setLocations(locations)
       return locations
     } catch (error) {
+      // Superseded requests (including aborted ones) must not clobber newer state
+      if (!isLatest()) return null
+
       if (isServiceUnavailable(error)) {
         // Database is down: show an inline empty state instead of a toast on every retry
         locationsStore.setLocations([])
@@ -39,7 +57,10 @@ export function useLocations() {
       notifications.error(message)
       throw error
     } finally {
-      locationsStore.setLoading(false)
+      if (isLatest()) {
+        locationsStore.setLoading(false)
+        listAbortController = null
+      }
     }
   }
 

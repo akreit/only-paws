@@ -96,7 +96,73 @@ describe('useLocations.fetchLocations', () => {
     } as never)
 
     expect(fetchMock).toHaveBeenCalledWith(
-      '/api/locations?type=PARK&search=a&latitude=1&longitude=2&radiusKm=3'
+      '/api/locations?type=PARK&search=a&latitude=1&longitude=2&radiusKm=3',
+      { signal: expect.any(AbortSignal) }
     )
+  })
+
+  describe('overlapping requests', () => {
+    function deferred<T>() {
+      let resolve!: (value: T) => void
+      let reject!: (reason: unknown) => void
+      const promise = new Promise<T>((res, rej) => {
+        resolve = res
+        reject = rej
+      })
+      return { promise, resolve, reject }
+    }
+
+    it('does not let an older response that resolves last overwrite the newer result', async () => {
+      const older = deferred<unknown[]>()
+      const newer = deferred<unknown[]>()
+      fetchMock.mockReturnValueOnce(older.promise).mockReturnValueOnce(newer.promise)
+      const { fetchLocations, locations, loading } = useLocations()
+
+      const first = fetchLocations({ search: 'par' })
+      const second = fetchLocations({ search: 'park' })
+
+      newer.resolve([{ id: 'new' }])
+      expect(await second).toEqual([{ id: 'new' }])
+      older.resolve([{ id: 'old' }])
+      expect(await first).toBeNull()
+
+      expect(locations.value).toEqual([{ id: 'new' }])
+      expect(loading.value).toBe(false)
+    })
+
+    it('aborts the previous request and ignores its failure', async () => {
+      const older = deferred<unknown[]>()
+      fetchMock.mockReturnValueOnce(older.promise).mockResolvedValueOnce([{ id: 'new' }])
+      const { fetchLocations, locations, error } = useLocations()
+
+      const first = fetchLocations()
+      const firstSignal = fetchMock.mock.calls[0]![1].signal as AbortSignal
+      await fetchLocations()
+      expect(firstSignal.aborted).toBe(true)
+
+      older.reject(new DOMException('aborted', 'AbortError'))
+      expect(await first).toBeNull()
+
+      expect(locations.value).toEqual([{ id: 'new' }])
+      expect(error.value).toBeNull()
+      expect(useNotificationsStore().notifications).toHaveLength(0)
+    })
+
+    it('keeps the loading flag on until the latest request settles', async () => {
+      const older = deferred<unknown[]>()
+      const newer = deferred<unknown[]>()
+      fetchMock.mockReturnValueOnce(older.promise).mockReturnValueOnce(newer.promise)
+      const { fetchLocations, loading } = useLocations()
+
+      const first = fetchLocations()
+      const second = fetchLocations()
+      older.resolve([])
+      await first
+      expect(loading.value).toBe(true)
+
+      newer.resolve([])
+      await second
+      expect(loading.value).toBe(false)
+    })
   })
 })

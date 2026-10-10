@@ -13,8 +13,31 @@ test.describe('Map Page', () => {
   test('should display search input', async ({ page }) => {
     await page.goto('/map')
 
-    const searchInput = page.getByPlaceholder(/search locations/i)
+    const searchInput = page.getByRole('combobox', { name: /search/i })
     await expect(searchInput).toBeVisible()
+  })
+
+  test('should open a saved place from the search dropdown', async ({ page }) => {
+    // Wait for the initial saved-places load so the page is hydrated before typing
+    const initialLoad = page.waitForResponse((response) =>
+      response.url().includes('/api/locations')
+    )
+    await page.goto('/map')
+    await initialLoad
+
+    // Saved places come from the seed data and need no Google key
+    const searchInput = page.getByRole('combobox', { name: /search/i })
+    await searchInput.fill('Cubbon')
+
+    const option = page.getByRole('option', { name: /Cubbon Park Dog Run/i })
+    await expect(option).toBeVisible()
+    await expect(page.getByText('Saved places', { exact: true })).toBeVisible()
+
+    await searchInput.press('ArrowDown')
+    await searchInput.press('Enter')
+
+    await expect(page.getByRole('button', { name: /open in only paws/i })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Cubbon Park Dog Run' })).toBeVisible()
   })
 
   test('should display location type filters', async ({ page }) => {
@@ -34,7 +57,7 @@ test.describe('Map Page', () => {
   test('should search for locations', async ({ page }) => {
     await page.goto('/map')
 
-    const searchInput = page.getByPlaceholder(/search locations/i)
+    const searchInput = page.getByRole('combobox', { name: /search/i })
     await searchInput.fill('park')
 
     // Wait for search results

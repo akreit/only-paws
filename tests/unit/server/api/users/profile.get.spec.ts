@@ -25,7 +25,8 @@ describe('GET /api/users/profile', () => {
   })
 
   it('creates the database user on first request instead of returning 404', async () => {
-    mocks.prisma.user.findUnique.mockResolvedValue({
+    // First lookup (requireDbUser) misses, second (profile load) finds the created row
+    mocks.prisma.user.findUnique.mockResolvedValueOnce(null).mockResolvedValueOnce({
       ...createMockUser(),
       locations: [],
       reviews: [],

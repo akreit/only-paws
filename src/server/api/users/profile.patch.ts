@@ -1,7 +1,7 @@
 import { validateProfileUpdate } from '../../../app/utils/profile'
 
 export default defineEventHandler(async (event) => {
-  const clerkUserId = await requireAuth(event)
+  const existing = await requireDbUser(event)
   const body = await readBody(event)
 
   const { valid, data, errors } = validateProfileUpdate(body)
@@ -12,14 +12,6 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const existing = await prisma.user.findUnique({ where: { clerkUserId } })
-  if (!existing) {
-    throw createError({
-      statusCode: 404,
-      message: 'User not found',
-    })
-  }
-
   // A user without a dog can't gain dog details unless hasDog is switched on in the same request
   if (data.hasDog === undefined && !existing.hasDog) {
     delete data.dogName
@@ -27,7 +19,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const dbUser = await prisma.user.update({
-    where: { clerkUserId },
+    where: { id: existing.id },
     data,
   })
 

@@ -31,12 +31,19 @@ describe('PATCH /api/users/profile', () => {
     expect(mocks.prisma.user.update).not.toHaveBeenCalled()
   })
 
-  it('returns 404 when the user does not exist', async () => {
+  it('creates the database user on first contact instead of returning 404', async () => {
     mocks.readBody.mockResolvedValue({ bio: 'hi' })
     mocks.prisma.user.findUnique.mockResolvedValue(null)
+    mocks.prisma.user.upsert.mockResolvedValue({ id: 'user-1', hasDog: false })
+    mocks.prisma.user.update.mockResolvedValue(createMockUser())
 
-    await expect(handler(createMockEvent())).rejects.toThrow('User not found')
-    expect(mocks.createError).toHaveBeenCalledWith({ statusCode: 404, message: 'User not found' })
+    await handler(createMockEvent())
+
+    expect(mocks.prisma.user.upsert).toHaveBeenCalled()
+    expect(mocks.prisma.user.update).toHaveBeenCalledWith({
+      where: { id: 'user-1' },
+      data: { bio: 'hi' },
+    })
   })
 
   it('updates only whitelisted fields and returns the user shape', async () => {
@@ -64,7 +71,7 @@ describe('PATCH /api/users/profile', () => {
     const result = await handler(createMockEvent())
 
     expect(mocks.prisma.user.update).toHaveBeenCalledWith({
-      where: { clerkUserId: 'clerk_123' },
+      where: { id: 'user-1' },
       data: { bio: 'Hi 🐶', hasDog: true, dogName: 'Rex', lookingFor: ['FRIENDS'] },
     })
     expect(result).not.toHaveProperty('extra')
@@ -87,7 +94,7 @@ describe('PATCH /api/users/profile', () => {
     await handler(createMockEvent())
 
     expect(mocks.prisma.user.update).toHaveBeenCalledWith({
-      where: { clerkUserId: 'clerk_123' },
+      where: { id: 'user-1' },
       data: { hasDog: false, dogName: null, dogBreed: null },
     })
   })
@@ -100,7 +107,7 @@ describe('PATCH /api/users/profile', () => {
     await handler(createMockEvent())
 
     expect(mocks.prisma.user.update).toHaveBeenCalledWith({
-      where: { clerkUserId: 'clerk_123' },
+      where: { id: 'user-1' },
       data: { homeCity: 'Berlin' },
     })
   })

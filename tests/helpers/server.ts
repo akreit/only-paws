@@ -1,6 +1,7 @@
 import { vi } from 'vitest'
 import { withDatabaseErrorHandling } from '../../src/server/utils/database'
 import { requireDbUser } from '../../src/server/utils/user'
+import { LOCATION_LIST_INCLUDE, withAverageRating } from '../../src/server/utils/location'
 
 export function setupServerMocks() {
   const prisma = {
@@ -44,6 +45,8 @@ export function setupServerMocks() {
   vi.stubGlobal('withDatabaseErrorHandling', withDatabaseErrorHandling)
   // Real implementation, driven by the mocked requireAuth/prisma
   vi.stubGlobal('requireDbUser', requireDbUser)
+  vi.stubGlobal('LOCATION_LIST_INCLUDE', LOCATION_LIST_INCLUDE)
+  vi.stubGlobal('withAverageRating', withAverageRating)
 
   return {
     prisma,

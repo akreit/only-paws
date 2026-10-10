@@ -38,18 +38,7 @@ export default defineEventHandler(async (event) => {
   }
 
   // Calculate average ratings for locations
-  const locationsWithRating = dbUser.locations.map((location) => {
-    const reviews = location.reviews || []
-    const averageRating =
-      reviews.length > 0
-        ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length
-        : 0
-
-    return {
-      ...location,
-      averageRating,
-    }
-  })
+  const locationsWithRating = dbUser.locations.map(withAverageRating)
 
   return {
     user: {

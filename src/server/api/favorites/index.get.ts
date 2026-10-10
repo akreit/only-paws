@@ -6,20 +6,7 @@ export default defineEventHandler(async (event) => {
       where: { userId: dbUser.id },
       include: {
         location: {
-          include: {
-            photos: {
-              take: 1,
-              orderBy: { createdAt: 'desc' },
-            },
-            reviews: true,
-            _count: {
-              select: {
-                reviews: true,
-                photos: true,
-                favorites: true,
-              },
-            },
-          },
+          include: LOCATION_LIST_INCLUDE,
         },
       },
       orderBy: { createdAt: 'desc' },
@@ -27,16 +14,8 @@ export default defineEventHandler(async (event) => {
   )
 
   // Same location shape as GET /api/locations
-  return favorites.map(({ locationId, location }) => {
-    const reviews = location.reviews ?? []
-    const averageRating =
-      reviews.length > 0
-        ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length
-        : 0
-
-    return {
-      locationId,
-      location: { ...location, averageRating },
-    }
-  })
+  return favorites.map(({ locationId, location }) => ({
+    locationId,
+    location: withAverageRating(location),
+  }))
 })

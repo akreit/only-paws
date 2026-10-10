@@ -1,5 +1,5 @@
 export default defineEventHandler(async (event) => {
-  const clerkUserId = await requireAuth(event)
+  const dbUser = await requireDbUser(event)
 
   const locationInclude = {
     photos: true,
@@ -15,18 +15,6 @@ export default defineEventHandler(async (event) => {
         favorites: true,
       },
     },
-  }
-
-  // Get database user
-  const dbUser = await prisma.user.findUnique({
-    where: { clerkUserId },
-  })
-
-  if (!dbUser) {
-    throw createError({
-      statusCode: 404,
-      message: 'User not found',
-    })
   }
 
   const body = await readBody(event)

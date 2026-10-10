@@ -1,21 +1,9 @@
 import { defineEventHandler, createError, readBody } from 'h3'
 import prisma from '../../utils/prisma'
-import { requireAuth } from '../../utils/auth'
+import { requireDbUser } from '../../utils/user'
 
 export default defineEventHandler(async (event) => {
-  const clerkUserId = await requireAuth(event)
-
-  // Get database user
-  const dbUser = await prisma.user.findUnique({
-    where: { clerkUserId },
-  })
-
-  if (!dbUser) {
-    throw createError({
-      statusCode: 404,
-      message: 'User not found',
-    })
-  }
+  const dbUser = await requireDbUser(event)
 
   const body = await readBody(event)
   const { url, publicId, locationId, caption } = body

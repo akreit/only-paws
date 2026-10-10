@@ -8,11 +8,14 @@ import type { H3Event } from 'h3'
 export async function requireDbUser(event: H3Event) {
   const clerkUserId = await requireAuth(event)
 
-  return withDatabaseErrorHandling(() =>
-    prisma.user.upsert({
-      where: { clerkUserId },
-      update: {},
-      create: { clerkUserId },
-    })
+  // Read first; upsert (not create) on a miss so concurrent first requests don't conflict
+  return withDatabaseErrorHandling(
+    async () =>
+      (await prisma.user.findUnique({ where: { clerkUserId } })) ??
+      (await prisma.user.upsert({
+        where: { clerkUserId },
+        update: {},
+        create: { clerkUserId },
+      }))
   )
 }

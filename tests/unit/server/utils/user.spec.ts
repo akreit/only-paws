@@ -17,8 +17,20 @@ describe('requireDbUser', () => {
     expect(mocks.prisma.user.upsert).not.toHaveBeenCalled()
   })
 
-  it('gets or creates the user by clerkUserId', async () => {
+  it('returns an existing user without upserting', async () => {
     const user = { id: 'u1', clerkUserId: 'clerk_123' }
+    mocks.prisma.user.findUnique.mockResolvedValue(user)
+
+    expect(await requireDbUser(createMockEvent() as never)).toEqual(user)
+    expect(mocks.prisma.user.findUnique).toHaveBeenCalledWith({
+      where: { clerkUserId: 'clerk_123' },
+    })
+    expect(mocks.prisma.user.upsert).not.toHaveBeenCalled()
+  })
+
+  it('upserts a bare user when none exists', async () => {
+    const user = { id: 'u1', clerkUserId: 'clerk_123' }
+    mocks.prisma.user.findUnique.mockResolvedValue(null)
     mocks.prisma.user.upsert.mockResolvedValue(user)
 
     expect(await requireDbUser(createMockEvent() as never)).toEqual(user)
@@ -34,7 +46,7 @@ describe('requireDbUser', () => {
     mocks.createError.mockImplementation((opts: { statusCode: number; message: string }) =>
       Object.assign(new Error(opts.message), { statusCode: opts.statusCode })
     )
-    mocks.prisma.user.upsert.mockRejectedValue(Object.assign(new Error('x'), { code: 'P1001' }))
+    mocks.prisma.user.findUnique.mockRejectedValue(Object.assign(new Error('x'), { code: 'P1001' }))
 
     await expect(requireDbUser(createMockEvent() as never)).rejects.toMatchObject({
       statusCode: 503,

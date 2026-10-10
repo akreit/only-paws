@@ -42,15 +42,5 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  // Calculate average rating
-  const reviews = location.reviews || []
-  const averageRating =
-    reviews.length > 0
-      ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length
-      : 0
-
-  return {
-    ...location,
-    averageRating,
-  }
+  return withAverageRating(location)
 })

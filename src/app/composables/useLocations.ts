@@ -1,4 +1,5 @@
 import type { Location, CreateLocationInput, LocationFilters } from '~/types'
+import { locationsCacheBust, markLocationsChanged } from '~/utils/locations-cache'
 
 export const LOCATIONS_UNAVAILABLE_MESSAGE = 'Saved places are currently unavailable'
 
@@ -33,6 +34,9 @@ export function useLocations() {
       if (filters?.latitude) query.append('latitude', filters.latitude.toString())
       if (filters?.longitude) query.append('longitude', filters.longitude.toString())
       if (filters?.radiusKm) query.append('radiusKm', filters.radiusKm.toString())
+
+      const fresh = locationsCacheBust()
+      if (fresh) query.append('fresh', fresh)
 
       const locations = await $fetch<Location[]>(`/api/locations?${query.toString()}`, {
         signal: controller.signal,
@@ -92,6 +96,7 @@ export function useLocations() {
         body: input,
       })
 
+      markLocationsChanged()
       locationsStore.addLocation(location)
       notifications.success('Location created successfully!')
       return location
@@ -114,6 +119,7 @@ export function useLocations() {
         method: 'DELETE',
       })
 
+      markLocationsChanged()
       locationsStore.removeLocation(id)
       notifications.success('Location deleted successfully!')
     } catch (error) {

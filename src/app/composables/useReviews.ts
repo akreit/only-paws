@@ -1,4 +1,5 @@
 import type { CreateReviewInput, Review } from '~/types'
+import { markLocationsChanged } from '~/utils/locations-cache'
 
 export function useReviews() {
   const notifications = useNotificationsStore()
@@ -13,6 +14,7 @@ export function useReviews() {
         body: input,
       })
 
+      markLocationsChanged()
       notifications.success('Review submitted successfully!')
       return review
     } catch (error) {
@@ -31,6 +33,7 @@ export function useReviews() {
         method: 'DELETE',
       })
 
+      markLocationsChanged()
       notifications.success('Review deleted successfully!')
     } catch (error) {
       notifications.error('Failed to delete review')

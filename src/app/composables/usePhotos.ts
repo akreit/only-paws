@@ -1,4 +1,5 @@
 import type { CreatePhotoInput, Photo, CloudinaryUploadResult } from '~/types'
+import { markLocationsChanged } from '~/utils/locations-cache'
 
 export function usePhotos() {
   const notifications = useNotificationsStore()
@@ -57,6 +58,7 @@ export function usePhotos() {
         body: input,
       })
 
+      markLocationsChanged()
       uploadProgress.value = 100
       notifications.success('Photo uploaded successfully!')
       return photo
@@ -78,6 +80,7 @@ export function usePhotos() {
         body: { publicId },
       })
 
+      markLocationsChanged()
       notifications.success('Photo deleted successfully!')
     } catch (error) {
       notifications.error('Failed to delete photo')

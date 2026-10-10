@@ -1,27 +1,62 @@
 import { setOptions, importLibrary } from '@googlemaps/js-api-loader'
 
-let isLoaded = false
+// Shared so concurrent callers (page setup, map init, geocoding) trigger a single load
+let loadPromise: Promise<typeof google.maps> | null = null
 
 export function useMap() {
   const config = useRuntimeConfig()
   const mapStore = useMapStore()
 
-  async function loadGoogleMaps(): Promise<typeof google.maps> {
-    if (isLoaded && window.google?.maps) {
-      return window.google.maps
-    }
+  function loadGoogleMaps(): Promise<typeof google.maps> {
+    if (!loadPromise) setOptions({ key: config.public.googleMapsApiKey as string })
 
-    setOptions({ key: config.public.googleMapsApiKey as string })
+    return (loadPromise ??= importLibrary('maps').then(
+      () => window.google.maps,
+      (err) => {
+        console.error('[Maps] Failed to import libraries:', err)
+        loadPromise = null
+        throw err
+      }
+    ))
+  }
 
-    try {
-      await Promise.all([importLibrary('places'), importLibrary('geometry'), importLibrary('maps')])
-    } catch (err) {
-      console.error('[Maps] Failed to import libraries:', err)
-      throw err
-    }
+  /** Warm the Places library (e.g. on search focus); never throws. */
+  function prefetchPlaces(): void {
+    void loadGoogleMaps()
+      .then(() => importLibrary('places'))
+      .catch(() => {})
+  }
 
-    isLoaded = true
-    return window.google.maps
+  // Where the map started; a fix is only applied if nothing has moved or zoomed the map since
+  let initialMap: {
+    map: google.maps.Map
+    center: google.maps.LatLng | undefined
+    zoom: number | undefined
+  } | null = null
+
+  /**
+   * Request the user's position once, in parallel with Maps loading. A fix arriving before the
+   * map exists becomes its initial center; a later one only pans a map that hasn't moved or zoomed.
+   */
+  function centerOnUserOnce({ isActive }: { isActive: () => boolean }): void {
+    if (!navigator.geolocation) return
+
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        if (!isActive()) return
+        const position = { lat: coords.latitude, lng: coords.longitude }
+        if (!initialMap) {
+          mapStore.setCenter(position)
+          return
+        }
+        const { map, center, zoom } = initialMap
+        if ((center && !map.getCenter()?.equals(center)) || map.getZoom() !== zoom) return
+        // center_changed keeps the store in sync
+        map.panTo(position)
+      },
+      () => {},
+      { timeout: 5000, maximumAge: 5 * 60 * 1000 }
+    )
   }
 
   async function initializeMap(element: HTMLElement): Promise<google.maps.Map> {
@@ -46,6 +81,7 @@ export function useMap() {
       )
     }
 
+    initialMap = { map, center: map.getCenter(), zoom: map.getZoom() }
     mapStore.setMapInstance(map)
 
     map.addListener('center_changed', () => {
@@ -92,7 +128,8 @@ export function useMap() {
 
   async function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
     await loadGoogleMaps()
-    const geocoder = new google.maps.Geocoder()
+    const { Geocoder } = await importLibrary('geocoding')
+    const geocoder = new Geocoder()
 
     return new Promise((resolve) => {
       geocoder.geocode({ address }, (results, status) => {
@@ -108,7 +145,8 @@ export function useMap() {
 
   async function reverseGeocode(lat: number, lng: number): Promise<string | null> {
     await loadGoogleMaps()
-    const geocoder = new google.maps.Geocoder()
+    const { Geocoder } = await importLibrary('geocoding')
+    const geocoder = new Geocoder()
 
     return new Promise((resolve) => {
       geocoder.geocode({ location: { lat, lng } }, (results, status) => {
@@ -123,7 +161,9 @@ export function useMap() {
 
   return {
     loadGoogleMaps,
+    prefetchPlaces,
     initializeMap,
+    centerOnUserOnce,
     createMarker,
     geocodeAddress,
     reverseGeocode,

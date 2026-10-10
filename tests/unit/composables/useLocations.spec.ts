@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { computed } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
 import { useLocationsStore } from '~/stores/locations'
@@ -6,15 +6,31 @@ import { useNotificationsStore } from '~/stores/notifications'
 import { LOCATIONS_UNAVAILABLE_MESSAGE, useLocations } from '~/composables/useLocations'
 
 const fetchMock = vi.fn()
+// Spy on the real implementation so the bypass behaviour is still exercised end to end
+const markChanged = vi.hoisted(() => vi.fn())
+vi.mock('~/utils/locations-cache', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('~/utils/locations-cache')>()
+  markChanged.mockImplementation(actual.markLocationsChanged)
+  return { ...actual, markLocationsChanged: markChanged }
+})
+// Each test starts an hour later so the module-level CDN bypass window never leaks between tests
+let testClock = 0
 
 describe('useLocations.fetchLocations', () => {
   beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2030-01-01T00:00:00Z').getTime() + testClock++ * 3_600_000)
     setActivePinia(createPinia())
     fetchMock.mockReset()
+    markChanged.mockClear()
     vi.stubGlobal('$fetch', fetchMock)
     vi.stubGlobal('computed', computed)
     vi.stubGlobal('useLocationsStore', useLocationsStore)
     vi.stubGlobal('useNotificationsStore', useNotificationsStore)
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('stores fetched locations', async () => {
@@ -69,6 +85,7 @@ describe('useLocations.fetchLocations', () => {
     await deleteLocation('1')
     expect(locations.value).toHaveLength(0)
     expect(useNotificationsStore().notifications).toHaveLength(2)
+    expect(markChanged).toHaveBeenCalledTimes(2)
   })
 
   it('sets error and notifies when single fetch, create or delete fails', async () => {
@@ -99,6 +116,49 @@ describe('useLocations.fetchLocations', () => {
       '/api/locations?type=PARK&search=a&latitude=1&longitude=2&radiusKm=3',
       { signal: expect.any(AbortSignal) }
     )
+  })
+
+  describe('CDN cache bypass after writes', () => {
+    const url = () => fetchMock.mock.calls.at(-1)?.[0] as string
+    type Api = ReturnType<typeof useLocations>
+
+    it('does not add a fresh param by default', async () => {
+      fetchMock.mockResolvedValue([])
+      await useLocations().fetchLocations()
+      expect(url()).toBe('/api/locations?')
+    })
+
+    it.each([
+      ['createLocation', (l: Api) => l.createLocation({} as never)],
+      ['deleteLocation', (l: Api) => l.deleteLocation('1')],
+    ])('adds fresh=<now> for 90s after %s, then stops', async (_name, write) => {
+      const locs = useLocations()
+      fetchMock.mockResolvedValue({ id: '1' })
+      await write(locs)
+
+      fetchMock.mockResolvedValue([])
+      await locs.fetchLocations({ type: 'PARK' } as never)
+      expect(url()).toBe(`/api/locations?type=PARK&fresh=${Date.now()}`)
+
+      vi.setSystemTime(Date.now() + 89_000)
+      await locs.fetchLocations()
+      expect(url()).toBe(`/api/locations?fresh=${Date.now()}`)
+
+      vi.setSystemTime(Date.now() + 2_000)
+      await locs.fetchLocations()
+      expect(url()).toBe('/api/locations?')
+    })
+
+    it('does not open the window when the write fails', async () => {
+      const locs = useLocations()
+      fetchMock.mockRejectedValue(new Error('x'))
+      await expect(locs.createLocation({} as never)).rejects.toBeDefined()
+      expect(markChanged).not.toHaveBeenCalled()
+
+      fetchMock.mockResolvedValue([])
+      await locs.fetchLocations()
+      expect(url()).toBe('/api/locations?')
+    })
   })
 
   describe('overlapping requests', () => {

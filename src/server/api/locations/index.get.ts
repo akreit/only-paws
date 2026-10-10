@@ -14,6 +14,9 @@ type LocationWithRelations = Prisma.LocationGetPayload<{
   }
 }>
 
+// Public, not user-specific: let the CDN serve it briefly
+const LIST_CACHE_CONTROL = 'public, max-age=0, s-maxage=30, stale-while-revalidate=60'
+
 export default defineEventHandler(async (event) => {
   const query = getQuery(event)
 
@@ -53,7 +56,7 @@ export default defineEventHandler(async (event) => {
 
     // Raw query for geospatial search
 
-    return await withDatabaseErrorHandling(
+    const nearby = await withDatabaseErrorHandling(
       () => prisma.$queryRaw<
         Array<{
           id: string
@@ -74,11 +77,14 @@ export default defineEventHandler(async (event) => {
       )
     `
     )
+    setResponseHeader(event, 'Cache-Control', LIST_CACHE_CONTROL)
+    return nearby
   }
 
   const locations = (await withDatabaseErrorHandling(() =>
     prisma.location.findMany(filters)
   )) as LocationWithRelations[]
 
+  setResponseHeader(event, 'Cache-Control', LIST_CACHE_CONTROL)
   return locations.map(withAverageRating)
 })

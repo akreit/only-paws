@@ -44,7 +44,7 @@ jobs:
             sleep 2
           done
       - name: Run Prisma migrations
-        run: npm run prisma:migrate
+        run: npm run prisma:migrate:deploy
       - name: Generate Prisma Client
         run: npm run prisma:generate
       - name: Seed database

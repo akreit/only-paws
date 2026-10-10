@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "nuxt dev",
-    "build": "prisma generate && nuxt build",
+    "build": "prisma generate && node scripts/migrate-deploy.mjs && nuxt build",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",

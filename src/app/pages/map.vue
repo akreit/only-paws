@@ -316,9 +316,10 @@ async function handleLocationAdded(location: Location) {
 
 useHead({
   title: 'Map - Only Paws',
+  // No crossorigin: the Maps script, tiles and icons are fetched in no-cors mode
   link: [
-    { rel: 'preconnect', href: 'https://maps.googleapis.com', crossorigin: 'anonymous' },
-    { rel: 'preconnect', href: 'https://maps.gstatic.com', crossorigin: 'anonymous' },
+    { rel: 'preconnect', href: 'https://maps.googleapis.com' },
+    { rel: 'preconnect', href: 'https://maps.gstatic.com' },
   ],
 })
 </script>

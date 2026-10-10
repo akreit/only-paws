@@ -1,7 +1,3 @@
-import { defineEventHandler, createError, readBody } from 'h3'
-import prisma from '../../utils/prisma'
-import { requireDbUser } from '../../utils/user'
-
 export default defineEventHandler(async (event) => {
   const dbUser = await requireDbUser(event)
 

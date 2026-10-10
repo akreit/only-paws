@@ -6,19 +6,7 @@ export default defineEventHandler(async (event) => {
     where: { id },
     include: {
       locations: {
-        include: {
-          photos: {
-            take: 1,
-          },
-          reviews: true,
-          _count: {
-            select: {
-              reviews: true,
-              photos: true,
-              favorites: true,
-            },
-          },
-        },
+        include: LOCATION_LIST_INCLUDE,
         orderBy: { createdAt: 'desc' },
       },
       reviews: {

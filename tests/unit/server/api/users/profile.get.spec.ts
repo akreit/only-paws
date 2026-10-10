@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setupServerMocks, createMockEvent } from '../../../../helpers/server'
 import { createMockUser } from '../../../../fixtures/factories'
+import { LOCATION_LIST_INCLUDE } from '../../../../../src/server/utils/location'
 
 const mocks = setupServerMocks()
 
@@ -41,6 +42,24 @@ describe('GET /api/users/profile', () => {
     })
     expect(mocks.prisma.user.findUnique).toHaveBeenCalledWith(
       expect.objectContaining({ where: { id: 'user_1' } })
+    )
+  })
+
+  it('loads locations with the shared list include, newest first', async () => {
+    mocks.prisma.user.findUnique.mockResolvedValue({
+      ...createMockUser(),
+      locations: [],
+      reviews: [],
+    })
+
+    await handler(createMockEvent())
+
+    expect(mocks.prisma.user.findUnique).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        include: expect.objectContaining({
+          locations: { include: LOCATION_LIST_INCLUDE, orderBy: { createdAt: 'desc' } },
+        }),
+      })
     )
   })
 

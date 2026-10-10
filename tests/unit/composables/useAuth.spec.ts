@@ -240,6 +240,39 @@ describe('useAuthSync', () => {
       expect(useUserStore().favorites).toEqual([])
     })
 
+    it("clears A's favorites on switch even when A had no DB user (sync failed)", async () => {
+      const syncB = deferred()
+      let calls = 0
+      fetchMock.mockImplementation(async (url: string) => {
+        if (url === '/api/users/sync') {
+          if (++calls === 1) throw new Error('A sync failed')
+          return syncB.promise
+        }
+        return [{ locationId: 'a', location: { id: 'a' } }]
+      })
+      isSignedIn.value = true
+      clerkUser.value = clerk
+      run()
+      await flush()
+      expect(useUserStore().user).toBeNull()
+
+      // Profile page loads A's favorites despite the failed sync
+      await useFavorites().ensureFavorites()
+      expect(useUserStore().favorites).toEqual(['a'])
+      expect(useUserStore().favoritesLoaded).toBe(true)
+
+      clerkUser.value = clerkB
+      await flush()
+
+      // B's sync is still pending
+      expect(useUserStore().favorites).toEqual([])
+      expect(useUserStore().favoriteLocationCache).toEqual([])
+      expect(useUserStore().favoritesLoaded).toBe(false)
+
+      syncB.resolve({ id: 'uB', clerkUserId: 'clerk_2' })
+      await flush()
+    })
+
     it('does not re-sync when the Clerk user object changes but the id does not', async () => {
       mockApi()
       isSignedIn.value = true

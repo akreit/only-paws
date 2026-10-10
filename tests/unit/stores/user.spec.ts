@@ -25,18 +25,18 @@ describe('user store', () => {
     expect(store.user).toBeNull()
   })
 
-  it('setFavorites stores locations, ids and marks them loaded', () => {
+  it('loadFavorites stores locations, ids and marks them loaded', async () => {
     const store = useUserStore()
     const loc = createMockLocation({ id: 'a' })
-    store.setFavorites([loc])
+    await store.loadFavorites(async () => [loc])
     expect(store.favorites).toEqual(['a'])
     expect(store.favoriteLocationCache).toEqual([loc])
     expect(store.favoritesLoaded).toBe(true)
   })
 
-  it('setFavorites with an empty list still counts as loaded', () => {
+  it('loadFavorites with an empty list still counts as loaded', async () => {
     const store = useUserStore()
-    store.setFavorites([])
+    await store.loadFavorites(async () => [])
     expect(store.favoritesLoaded).toBe(true)
   })
 
@@ -60,10 +60,10 @@ describe('user store', () => {
     expect(store.favoritesLoaded).toBe(false)
   })
 
-  it('reset clears user, favorites, cache and loaded flag', () => {
+  it('reset clears user, favorites, cache and loaded flag', async () => {
     const store = useUserStore()
     store.setUser({ id: 'u1' } as User)
-    store.setFavorites([createMockLocation({ id: 'a' })])
+    await store.loadFavorites(async () => [createMockLocation({ id: 'a' })])
 
     store.reset()
 

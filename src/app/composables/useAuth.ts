@@ -20,7 +20,7 @@ export function useAuthSync() {
     const isStale = () => clerkUser.value?.id !== clerkId
 
     // Clerk multi-session: don't keep showing the previous account's data
-    if (userStore.user && userStore.user.clerkUserId !== clerkId) {
+    if (userStore.user?.clerkUserId !== clerkId) {
       userStore.reset()
     }
 

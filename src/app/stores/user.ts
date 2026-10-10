@@ -74,7 +74,6 @@ export const useUserStore = defineStore('user', () => {
     favoriteLocationCache,
     favoritesLoaded,
     setUser,
-    setFavorites,
     loadFavorites,
     addFavorite,
     removeFavorite,

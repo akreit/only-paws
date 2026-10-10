@@ -4,9 +4,18 @@ import { setActivePinia, createPinia } from 'pinia'
 import { useUserStore } from '~/stores/user'
 import { useNotificationsStore } from '~/stores/notifications'
 import { useFavorites } from '~/composables/useFavorites'
+import type { Location } from '~/types'
 import { createMockLocation } from '../../fixtures/factories'
 
 const fetchMock = vi.fn()
+
+function seedFavorites(locations: Location[]) {
+  useUserStore().$patch({
+    favorites: locations.map((l) => l.id),
+    favoriteLocationCache: locations,
+    favoritesLoaded: true,
+  })
+}
 
 function lastNotificationType() {
   return useNotificationsStore().notifications.at(-1)?.type
@@ -41,7 +50,7 @@ describe('useFavorites', () => {
   })
 
   it('fetchFavorites clears the list when the server returns none', async () => {
-    useUserStore().setFavorites([createMockLocation({ id: 'old' })])
+    seedFavorites([createMockLocation({ id: 'old' })])
     fetchMock.mockResolvedValue([])
     const { fetchFavorites, favorites, favoriteLocations } = useFavorites()
 
@@ -82,7 +91,7 @@ describe('useFavorites', () => {
   })
 
   it('ensureFavorites skips the request when already loaded', async () => {
-    useUserStore().setFavorites([createMockLocation({ id: 'a' })])
+    seedFavorites([createMockLocation({ id: 'a' })])
     const { ensureFavorites } = useFavorites()
 
     expect(await ensureFavorites()).toEqual(['a'])
@@ -90,7 +99,7 @@ describe('useFavorites', () => {
   })
 
   it('ensureFavorites fetches again after a reset', async () => {
-    useUserStore().setFavorites([createMockLocation({ id: 'a' })])
+    seedFavorites([createMockLocation({ id: 'a' })])
     useUserStore().reset()
     fetchMock.mockResolvedValue([])
     const { ensureFavorites } = useFavorites()
@@ -142,7 +151,7 @@ describe('useFavorites', () => {
   })
 
   it('removeFavorite toasts and keeps the favorite on failure', async () => {
-    useUserStore().setFavorites([createMockLocation({ id: 'a' })])
+    seedFavorites([createMockLocation({ id: 'a' })])
     fetchMock.mockRejectedValue(new Error('nope'))
     const { removeFavorite, isFavorite } = useFavorites()
 
@@ -165,7 +174,7 @@ describe('useFavorites', () => {
   })
 
   it('toggleFavorite removes a place already loaded as saved', async () => {
-    useUserStore().setFavorites([createMockLocation({ id: 'a' })])
+    seedFavorites([createMockLocation({ id: 'a' })])
     fetchMock.mockResolvedValue({})
     const { toggleFavorite, isFavorite } = useFavorites()
 

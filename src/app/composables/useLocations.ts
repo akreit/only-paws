@@ -7,6 +7,10 @@ function isServiceUnavailable(error: unknown): boolean {
   return (statusCode ?? status) === 503
 }
 
+// After a write, skip the CDN-cached list (s-maxage) so the user sees their change
+const CDN_BYPASS_MS = 90_000
+let bypassCdnUntil = 0
+
 // Shared across callers: only the newest list request may touch the store
 let latestListRequest = 0
 let listAbortController: AbortController | null = null
@@ -33,6 +37,8 @@ export function useLocations() {
       if (filters?.latitude) query.append('latitude', filters.latitude.toString())
       if (filters?.longitude) query.append('longitude', filters.longitude.toString())
       if (filters?.radiusKm) query.append('radiusKm', filters.radiusKm.toString())
+
+      if (Date.now() < bypassCdnUntil) query.append('fresh', Date.now().toString())
 
       const locations = await $fetch<Location[]>(`/api/locations?${query.toString()}`, {
         signal: controller.signal,
@@ -92,6 +98,7 @@ export function useLocations() {
         body: input,
       })
 
+      bypassCdnUntil = Date.now() + CDN_BYPASS_MS
       locationsStore.addLocation(location)
       notifications.success('Location created successfully!')
       return location
@@ -114,6 +121,7 @@ export function useLocations() {
         method: 'DELETE',
       })
 
+      bypassCdnUntil = Date.now() + CDN_BYPASS_MS
       locationsStore.removeLocation(id)
       notifications.success('Location deleted successfully!')
     } catch (error) {

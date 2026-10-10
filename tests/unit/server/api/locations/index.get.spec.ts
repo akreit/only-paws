@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { setupServerMocks, createMockEvent } from '../../../../helpers/server'
 
 const mocks = setupServerMocks()
+const setResponseHeader = vi.fn()
+vi.stubGlobal('setResponseHeader', setResponseHeader)
 
 const handler = (await import('#server/api/locations/index.get')).default
 
@@ -30,6 +32,43 @@ describe('GET /api/locations', () => {
     expect(result).toHaveLength(1)
     expect(result[0].averageRating).toBe(4)
     expect(result[0].name).toBe('Dog Park')
+  })
+
+  it('sets a short public CDN cache header on success', async () => {
+    mocks.prisma.location.findMany.mockResolvedValue([])
+    const event = createMockEvent()
+
+    await handler(event)
+
+    expect(setResponseHeader).toHaveBeenCalledWith(
+      event,
+      'Cache-Control',
+      'public, max-age=0, s-maxage=30, stale-while-revalidate=60'
+    )
+  })
+
+  it('sets the cache header on radius search too', async () => {
+    mocks.getQuery.mockReturnValue({ latitude: '1', longitude: '2', radiusKm: '3' })
+    mocks.prisma.$queryRaw.mockResolvedValue([])
+
+    await handler(createMockEvent())
+
+    expect(setResponseHeader).toHaveBeenCalledWith(
+      expect.anything(),
+      'Cache-Control',
+      expect.stringContaining('s-maxage=30')
+    )
+  })
+
+  it('does not set the cache header on errors', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    mocks.prisma.location.findMany.mockRejectedValue(
+      Object.assign(new Error('boom'), { code: 'ECONNREFUSED' })
+    )
+
+    await expect(handler(createMockEvent())).rejects.toBeDefined()
+
+    expect(setResponseHeader).not.toHaveBeenCalled()
   })
 
   it('returns empty array when no locations', async () => {

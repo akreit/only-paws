@@ -13,6 +13,7 @@
           :loading="search.loading.value"
           :places-unavailable="search.placesUnavailable.value"
           @select="search.select"
+          @focus="prefetchPlaces"
         />
 
         <div class="mt-3 flex flex-wrap gap-2">
@@ -129,7 +130,7 @@ import MapPlacePreviewCard from '~/components/location/MapPlacePreviewCard.vue'
 
 const { isSignedIn } = useAuth()
 const { locations, loading, error: locationsError } = useLocations()
-const { initializeMap, createMarker, mapStore } = useMap()
+const { loadGoogleMaps, initializeMap, createMarker, prefetchPlaces, mapStore } = useMap()
 
 const mapContainer = ref<HTMLElement>()
 const showAddModal = ref(false)
@@ -138,6 +139,13 @@ const selectedType = ref<LocationType | null>(null)
 let mapInstance: google.maps.Map | null = null
 const markers: google.maps.Marker[] = []
 let mapClickListener: google.maps.MapsEventListener | null = null
+let mounted = false
+let userMovedMap = false
+
+// Start downloading the Maps JS as early as possible (before hydration finishes)
+if (import.meta.client) {
+  loadGoogleMaps().catch(() => {})
+}
 
 const search = useMapSearch({
   getMap: () => mapInstance,
@@ -187,26 +195,33 @@ const selectedPlaceInput = computed<CreateLocationInput | undefined>(() => {
 })
 
 onMounted(async () => {
-  await resolveCenter()
+  mounted = true
+  // Locations, geolocation and the Maps script load in parallel; none blocks the others
+  void search.refreshLocations()
+  locateUser()
   await initMap()
-  await search.refreshLocations()
+  // Locations may have arrived before the map existed, when drawing was a no-op
+  updateMarkers()
 })
 
 onBeforeUnmount(() => {
+  mounted = false
   mapClickListener?.remove()
 })
 
-function resolveCenter(): Promise<void> {
-  return new Promise((resolve) => {
-    if (!navigator.geolocation) return resolve()
-    navigator.geolocation.getCurrentPosition(
-      ({ coords }) => {
-        mapStore.setCenter({ lat: coords.latitude, lng: coords.longitude })
-        resolve()
-      },
-      () => resolve()
-    )
-  })
+function locateUser() {
+  if (!navigator.geolocation) return
+
+  navigator.geolocation.getCurrentPosition(
+    ({ coords }) => {
+      if (!mounted || userMovedMap) return
+      const position = { lat: coords.latitude, lng: coords.longitude }
+      mapStore.setCenter(position)
+      mapInstance?.panTo(position)
+    },
+    () => {},
+    { timeout: 5000, maximumAge: 5 * 60 * 1000 }
+  )
 }
 
 async function initMap() {
@@ -214,6 +229,10 @@ async function initMap() {
 
   try {
     mapInstance = await initializeMap(mapContainer.value)
+    // A late geolocation fix must not yank the map away from a user who is already panning
+    mapInstance.addListener('dragstart', () => {
+      userMovedMap = true
+    })
     bindPlaceClickListener()
   } catch (error) {
     console.error('Failed to initialize map:', error)
@@ -297,5 +316,9 @@ async function handleLocationAdded(location: Location) {
 
 useHead({
   title: 'Map - Only Paws',
+  link: [
+    { rel: 'preconnect', href: 'https://maps.googleapis.com', crossorigin: 'anonymous' },
+    { rel: 'preconnect', href: 'https://maps.gstatic.com', crossorigin: 'anonymous' },
+  ],
 })
 </script>

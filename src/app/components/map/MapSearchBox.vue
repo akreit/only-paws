@@ -14,7 +14,7 @@
       :aria-activedescendant="activeOptionId"
       class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 placeholder-gray-400 shadow-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-0 sm:text-sm"
       @input="handleInput"
-      @focus="open = true"
+      @focus="handleFocus"
       @keydown="handleKeydown"
     />
 
@@ -90,6 +90,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update:modelValue': [value: string]
   select: [item: SearchResultItem]
+  focus: []
 }>()
 
 const uid = useId()
@@ -122,6 +123,11 @@ function indexOf(item: SearchResultItem) {
 
 function isActive(item: SearchResultItem) {
   return indexOf(item) === activeIndex.value
+}
+
+function handleFocus() {
+  open.value = true
+  emit('focus')
 }
 
 function handleInput(event: Event) {

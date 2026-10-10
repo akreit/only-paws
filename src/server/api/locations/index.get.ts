@@ -66,17 +66,18 @@ export default defineEventHandler(async (event) => {
 
     // Raw query for geospatial search
 
-    return await prisma.$queryRaw<
-      Array<{
-        id: string
-        name: string
-        type: LocationType
-        description: string | null
-        address: string
-        latitude: number
-        longitude: number
-      }>
-    >`
+    return await withDatabaseErrorHandling(
+      () => prisma.$queryRaw<
+        Array<{
+          id: string
+          name: string
+          type: LocationType
+          description: string | null
+          address: string
+          latitude: number
+          longitude: number
+        }>
+      >`
       SELECT l.*
       FROM "Location" l
       WHERE ST_DWithin(
@@ -85,9 +86,12 @@ export default defineEventHandler(async (event) => {
         ${radiusMeters}
       )
     `
+    )
   }
 
-  const locations = (await prisma.location.findMany(filters)) as LocationWithRelations[]
+  const locations = (await withDatabaseErrorHandling(() =>
+    prisma.location.findMany(filters)
+  )) as LocationWithRelations[]
 
   // Calculate average rating for each location
   return locations.map((location) => {

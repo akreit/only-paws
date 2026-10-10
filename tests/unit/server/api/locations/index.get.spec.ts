@@ -130,4 +130,23 @@ describe('GET /api/locations', () => {
     const callArgs = mocks.prisma.location.findMany.mock.calls[0][0]
     expect(callArgs.where.OR).toBeUndefined()
   })
+
+  it('returns 503 when the database is unreachable', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mocks.prisma.location.findMany.mockRejectedValue(
+      Object.assign(new Error('Invalid `prisma.location.findMany()` invocation'), {
+        code: 'ECONNREFUSED',
+      })
+    )
+
+    await expect(handler(createMockEvent())).rejects.toMatchObject({ statusCode: 503 })
+    consoleSpy.mockRestore()
+  })
+
+  it('rethrows non-connection errors unchanged', async () => {
+    const error = new Error('boom')
+    mocks.prisma.location.findMany.mockRejectedValue(error)
+
+    await expect(handler(createMockEvent())).rejects.toBe(error)
+  })
 })

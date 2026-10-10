@@ -366,7 +366,7 @@ watch(
     if (!loaded) return
     if (signedIn) {
       loading.value = true
-      await Promise.all([loadUserData(), loadFavorites()])
+      await Promise.all([loadUserData(), fetchFavorites({ silent: true }).catch(() => {})])
     } else {
       userLocations.value = []
       userReviews.value = []
@@ -440,14 +440,6 @@ async function handleSave() {
     editing.value = false
   } catch {
     // saveProfile already notified the user; stay in edit mode
-  }
-}
-
-async function loadFavorites() {
-  try {
-    await fetchFavorites()
-  } catch (error) {
-    console.error('Failed to load favorites:', error)
   }
 }
 

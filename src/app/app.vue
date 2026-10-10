@@ -6,7 +6,3 @@
     </NuxtLayout>
   </div>
 </template>
-
-<script setup lang="ts">
-useAuthSync()
-</script>

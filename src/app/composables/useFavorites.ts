@@ -17,7 +17,7 @@ export function useFavorites() {
     try {
       const favorites = await $fetch<FavoriteEntry[]>('/api/favorites')
       const locationIds = favorites.map((f) => f.locationId)
-      userStore.setFavoriteLocations(favorites.map((f) => f.location))
+      userStore.setFavoriteLocationCache(favorites.map((f) => f.location))
       userStore.setFavorites(locationIds)
       return locationIds
     } catch (error) {
@@ -82,7 +82,7 @@ export function useFavorites() {
     favorites: computed(() => userStore.favorites),
     // Fetched locations that are still favorited, so unfavoriting drops them immediately
     favoriteLocations: computed(() =>
-      userStore.favoriteLocationData.filter((l) => userStore.favorites.includes(l.id))
+      userStore.favoriteLocationCache.filter((l) => userStore.favorites.includes(l.id))
     ),
     isFavorite: userStore.isFavorite,
     fetchFavorites,

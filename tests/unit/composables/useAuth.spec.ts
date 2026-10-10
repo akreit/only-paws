@@ -64,7 +64,7 @@ describe('useAuthSync', () => {
     })
   }
 
-  it('syncs without sending clerkUserId, then loads favorites', async () => {
+  it('syncs without sending a body, then loads favorites', async () => {
     mockApi([{ locationId: 'l1', location: { id: 'l1' } }])
     isSignedIn.value = true
     clerkUser.value = clerk
@@ -74,7 +74,6 @@ describe('useAuthSync', () => {
 
     expect(fetchMock).toHaveBeenNthCalledWith(1, '/api/users/sync', {
       method: 'POST',
-      body: { email: 'a@b.c', username: 'me', avatarUrl: 'http://img' },
     })
     expect(fetchMock).toHaveBeenNthCalledWith(2, '/api/favorites')
     expect(useUserStore().favorites).toEqual(['l1'])
@@ -105,23 +104,6 @@ describe('useAuthSync', () => {
     expect(useNotificationsStore().notifications[0].type).toBe('error')
   })
 
-  it('does not sync or load favorites during SSR', async () => {
-    mockApi()
-    isSignedIn.value = true
-    clerkUser.value = clerk
-    vi.stubGlobal('__TEST_SSR__', true)
-
-    try {
-      run()
-      await flush()
-    } finally {
-      vi.unstubAllGlobals()
-    }
-
-    expect(fetchMock).not.toHaveBeenCalled()
-    expect(useNotificationsStore().notifications).toHaveLength(0)
-  })
-
   it('clears favorites and profile on sign-out', async () => {
     mockApi([{ locationId: 'l1', location: { id: 'l1' } }])
     isSignedIn.value = true
@@ -135,7 +117,7 @@ describe('useAuthSync', () => {
     await flush()
 
     expect(useUserStore().favorites).toEqual([])
-    expect(useUserStore().favoriteLocationData).toEqual([])
+    expect(useUserStore().favoriteLocationCache).toEqual([])
     expect(useUserStore().profile).toBeNull()
   })
 })

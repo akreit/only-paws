@@ -129,7 +129,7 @@ const emit = defineEmits<{
 }>()
 
 const { isSignedIn } = useAuth()
-const { user } = useUser()
+const authStore = useAuthStore()
 const { uploadPhoto, deletePhoto, loading: uploading, uploadProgress } = usePhotos()
 const notifications = useNotificationsStore()
 
@@ -143,7 +143,7 @@ function openLightbox(photo: Photo) {
 }
 
 function canDelete(photo: Photo) {
-  return user.value?.id === photo.uploaderId
+  return authStore.user?.id === photo.uploaderId
 }
 
 async function handleFileSelect(event: Event) {

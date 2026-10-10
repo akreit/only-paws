@@ -15,7 +15,7 @@ export function useAuthSync() {
     authStore.clearUser()
     userStore.setProfile(null)
     userStore.setFavorites([])
-    userStore.setFavoriteLocations([])
+    userStore.setFavoriteLocationCache([])
   }
 
   // Sync Clerk user with our database
@@ -29,11 +29,6 @@ export function useAuthSync() {
     try {
       const response = await $fetch<User>('/api/users/sync', {
         method: 'POST',
-        body: {
-          email: clerkUser.value.primaryEmailAddress?.emailAddress,
-          username: clerkUser.value.username,
-          avatarUrl: clerkUser.value.imageUrl,
-        },
       })
 
       authStore.setUser(response)
@@ -55,21 +50,18 @@ export function useAuthSync() {
     }
   }
 
-  // Watch for Clerk auth changes. Client only: during SSR there is no session
-  // to forward, so a sync request would be unauthenticated and toast an error.
-  if (!import.meta.server) {
-    watch(
-      [isSignedIn, clerkUser],
-      async ([signedIn, user]) => {
-        if (signedIn && user) {
-          await syncUser()
-        } else {
-          clearUserState()
-        }
-      },
-      { immediate: true }
-    )
-  }
+  // Watch for Clerk auth changes (registered from the client-only auth-sync plugin)
+  watch(
+    [isSignedIn, clerkUser],
+    async ([signedIn, user]) => {
+      if (signedIn && user) {
+        await syncUser()
+      } else {
+        clearUserState()
+      }
+    },
+    { immediate: true }
+  )
 
   return {
     isSignedIn,

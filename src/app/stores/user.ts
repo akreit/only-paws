@@ -5,8 +5,7 @@ import type { Location, User } from '~/types'
 export const useUserStore = defineStore('user', () => {
   const profile = ref<User | null>(null)
   const favorites = ref<string[]>([])
-  // Location objects from the last favorites fetch (see useFavorites().favoriteLocations)
-  const favoriteLocationData = ref<Location[]>([])
+  const favoriteLocationCache = ref<Location[]>([])
   const loading = ref(false)
 
   function setProfile(user: User | null) {
@@ -23,8 +22,8 @@ export const useUserStore = defineStore('user', () => {
     favorites.value = locationIds
   }
 
-  function setFavoriteLocations(locations: Location[]) {
-    favoriteLocationData.value = locations
+  function setFavoriteLocationCache(locations: Location[]) {
+    favoriteLocationCache.value = locations
   }
 
   function addFavorite(locationId: string) {
@@ -47,12 +46,12 @@ export const useUserStore = defineStore('user', () => {
   return {
     profile,
     favorites,
-    favoriteLocationData,
+    favoriteLocationCache,
     loading,
     setProfile,
     updateProfile,
     setFavorites,
-    setFavoriteLocations,
+    setFavoriteLocationCache,
     addFavorite,
     removeFavorite,
     isFavorite,

@@ -3,17 +3,7 @@ import vue from '@vitejs/plugin-vue'
 import { resolve } from 'path'
 
 export default defineConfig({
-  plugins: [
-    vue(),
-    {
-      // Nuxt replaces import.meta.server at build time; tests flip it via a global
-      name: 'test-import-meta-server',
-      transform: (code) =>
-        code.includes('import.meta.server')
-          ? code.replaceAll('import.meta.server', 'Boolean(globalThis.__TEST_SSR__)')
-          : null,
-    },
-  ],
+  plugins: [vue()],
   test: {
     globals: true,
     environment: 'jsdom',

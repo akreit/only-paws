@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 const root = resolve(__dirname, '../../..')
 
 // Nuxt only picks up app.vue from srcDir; elsewhere it silently falls back to its
-// built-in app, so useAuthSync() never runs and the User row is never created.
+// built-in app, so the auth-sync plugin never runs and the User row is never created.
 describe('app entry', () => {
   it('lives under the configured srcDir', () => {
     const config = readFileSync(resolve(root, 'nuxt.config.ts'), 'utf8')
@@ -14,7 +14,7 @@ describe('app entry', () => {
     expect(existsSync(resolve(root, 'src/app.vue'))).toBe(false)
   })
 
-  it('runs useAuthSync', () => {
-    expect(readFileSync(resolve(root, 'src/app/app.vue'), 'utf8')).toContain('useAuthSync()')
+  it('has the client-only auth sync plugin', () => {
+    expect(existsSync(resolve(root, 'src/app/plugins/auth-sync.client.ts'))).toBe(true)
   })
 })

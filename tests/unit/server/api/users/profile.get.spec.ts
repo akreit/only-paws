@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setupServerMocks, createMockEvent } from '../../../../helpers/server'
 import { createMockUser } from '../../../../fixtures/factories'
+import { LOCATION_LIST_INCLUDE } from '../../../../../src/server/utils/location'
 
 const mocks = setupServerMocks()
 
@@ -15,9 +16,54 @@ describe('GET /api/users/profile', () => {
       return err
     })
     mocks.requireAuth.mockResolvedValue('clerk_123')
+    mocks.prisma.user.upsert.mockResolvedValue({ id: 'user_1', clerkUserId: 'clerk_123' })
   })
 
-  it('returns 404 when the user does not exist', async () => {
+  it('requires authentication', async () => {
+    mocks.requireAuth.mockRejectedValue(new Error('Unauthorized'))
+    await expect(handler(createMockEvent())).rejects.toThrow('Unauthorized')
+    expect(mocks.prisma.user.findUnique).not.toHaveBeenCalled()
+  })
+
+  it('creates the database user on first request instead of returning 404', async () => {
+    // First lookup (requireDbUser) misses, second (profile load) finds the created row
+    mocks.prisma.user.findUnique.mockResolvedValueOnce(null).mockResolvedValueOnce({
+      ...createMockUser(),
+      locations: [],
+      reviews: [],
+    })
+
+    await handler(createMockEvent())
+
+    expect(mocks.prisma.user.upsert).toHaveBeenCalledWith({
+      where: { clerkUserId: 'clerk_123' },
+      update: {},
+      create: { clerkUserId: 'clerk_123' },
+    })
+    expect(mocks.prisma.user.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'user_1' } })
+    )
+  })
+
+  it('loads locations with the shared list include, newest first', async () => {
+    mocks.prisma.user.findUnique.mockResolvedValue({
+      ...createMockUser(),
+      locations: [],
+      reviews: [],
+    })
+
+    await handler(createMockEvent())
+
+    expect(mocks.prisma.user.findUnique).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        include: expect.objectContaining({
+          locations: { include: LOCATION_LIST_INCLUDE, orderBy: { createdAt: 'desc' } },
+        }),
+      })
+    )
+  })
+
+  it('returns 404 if the user disappears between upsert and load', async () => {
     mocks.prisma.user.findUnique.mockResolvedValue(null)
     await expect(handler(createMockEvent())).rejects.toThrow('User not found')
   })

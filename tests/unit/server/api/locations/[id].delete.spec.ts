@@ -28,12 +28,16 @@ describe('DELETE /api/locations/[id]', () => {
     await expect(handler(createMockEvent())).rejects.toThrow('Location ID is required')
   })
 
-  it('throws 404 when user not found', async () => {
+  it('creates the database user on first contact instead of returning 404', async () => {
     mocks.requireAuth.mockResolvedValue('clerk_123')
     mocks.getRouterParam.mockReturnValue('loc-1')
     mocks.prisma.user.findUnique.mockResolvedValue(null)
+    mocks.prisma.user.upsert.mockResolvedValue({ id: 'user-1' })
+    mocks.prisma.location.findUnique.mockResolvedValue({ id: 'loc-1', createdById: 'user-1' })
+    mocks.prisma.location.delete.mockResolvedValue({})
 
-    await expect(handler(createMockEvent())).rejects.toThrow('User not found')
+    expect(await handler(createMockEvent())).toEqual({ success: true })
+    expect(mocks.prisma.user.upsert).toHaveBeenCalled()
   })
 
   it('throws 404 when location not found', async () => {

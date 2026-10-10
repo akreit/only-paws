@@ -1,24 +1,12 @@
 export default defineEventHandler(async (event) => {
-  const clerkUserId = await requireAuth(event)
+  const { id } = await requireDbUser(event)
 
   // Get database user with related data
   const dbUser = await prisma.user.findUnique({
-    where: { clerkUserId },
+    where: { id },
     include: {
       locations: {
-        include: {
-          photos: {
-            take: 1,
-          },
-          reviews: true,
-          _count: {
-            select: {
-              reviews: true,
-              photos: true,
-              favorites: true,
-            },
-          },
-        },
+        include: LOCATION_LIST_INCLUDE,
         orderBy: { createdAt: 'desc' },
       },
       reviews: {
@@ -38,18 +26,7 @@ export default defineEventHandler(async (event) => {
   }
 
   // Calculate average ratings for locations
-  const locationsWithRating = dbUser.locations.map((location) => {
-    const reviews = location.reviews || []
-    const averageRating =
-      reviews.length > 0
-        ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length
-        : 0
-
-    return {
-      ...location,
-      averageRating,
-    }
-  })
+  const locationsWithRating = dbUser.locations.map(withAverageRating)
 
   return {
     user: {

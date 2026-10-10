@@ -21,14 +21,17 @@ describe('POST /api/locations', () => {
     await expect(handler(createMockEvent())).rejects.toThrow('Unauthorized')
   })
 
-  it('throws 404 when DB user not found', async () => {
+  it('creates the database user on first contact instead of returning 404', async () => {
     mocks.requireAuth.mockResolvedValue('clerk_123')
     mocks.prisma.user.findUnique.mockResolvedValue(null)
+    mocks.prisma.user.upsert.mockResolvedValue({ id: 'user-1', clerkUserId: 'clerk_123' })
+    mocks.readBody.mockResolvedValue({ name: 'Park' })
 
-    await expect(handler(createMockEvent())).rejects.toThrow('User not found')
-    expect(mocks.createError).toHaveBeenCalledWith({
-      statusCode: 404,
-      message: 'User not found',
+    await expect(handler(createMockEvent())).rejects.toThrow('Missing required fields')
+    expect(mocks.prisma.user.upsert).toHaveBeenCalledWith({
+      where: { clerkUserId: 'clerk_123' },
+      update: {},
+      create: { clerkUserId: 'clerk_123' },
     })
   })
 

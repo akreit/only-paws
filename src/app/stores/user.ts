@@ -1,10 +1,11 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import type { User } from '~/types'
+import type { Location, User } from '~/types'
 
 export const useUserStore = defineStore('user', () => {
   const profile = ref<User | null>(null)
   const favorites = ref<string[]>([])
+  const favoriteLocationCache = ref<Location[]>([])
   const loading = ref(false)
 
   function setProfile(user: User | null) {
@@ -19,6 +20,10 @@ export const useUserStore = defineStore('user', () => {
 
   function setFavorites(locationIds: string[]) {
     favorites.value = locationIds
+  }
+
+  function setFavoriteLocationCache(locations: Location[]) {
+    favoriteLocationCache.value = locations
   }
 
   function addFavorite(locationId: string) {
@@ -41,10 +46,12 @@ export const useUserStore = defineStore('user', () => {
   return {
     profile,
     favorites,
+    favoriteLocationCache,
     loading,
     setProfile,
     updateProfile,
     setFavorites,
+    setFavoriteLocationCache,
     addFavorite,
     removeFavorite,
     isFavorite,

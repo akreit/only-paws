@@ -1,31 +1,31 @@
-export default defineEventHandler(async (event) => {
-  const body = await readBody(event)
-  const { clerkUserId, email, username, avatarUrl } = body
+import { clerkClient } from '@clerk/nuxt/server'
 
-  if (!clerkUserId) {
+export default defineEventHandler(async (event) => {
+  const clerkUserId = await requireAuth(event)
+
+  // Profile fields come from Clerk, never from the request body
+  let clerkUser
+  try {
+    clerkUser = await clerkClient(event).users.getUser(clerkUserId)
+  } catch (error) {
+    console.error('Failed to load user from Clerk:', error)
     throw createError({
-      statusCode: 400,
-      message: 'Clerk user ID is required',
+      statusCode: 502,
+      message: 'Failed to load user from Clerk',
     })
   }
 
-  // Find or create user
-  const user = await withDatabaseErrorHandling(() =>
+  const profile = {
+    email: clerkUser.primaryEmailAddress?.emailAddress ?? null,
+    username: clerkUser.username ?? null,
+    avatarUrl: clerkUser.imageUrl ?? null,
+  }
+
+  return withDatabaseErrorHandling(() =>
     prisma.user.upsert({
       where: { clerkUserId },
-      update: {
-        email,
-        username,
-        avatarUrl,
-      },
-      create: {
-        clerkUserId,
-        email,
-        username,
-        avatarUrl,
-      },
+      update: profile,
+      create: { clerkUserId, ...profile },
     })
   )
-
-  return user
 })

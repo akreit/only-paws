@@ -1,5 +1,5 @@
 export default defineEventHandler(async (event) => {
-  const clerkUserId = await requireAuth(event)
+  const dbUser = await requireDbUser(event)
   const locationId = getRouterParam(event, 'locationId')
 
   if (!locationId) {
@@ -9,25 +9,15 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  // Get database user
-  const dbUser = await prisma.user.findUnique({
-    where: { clerkUserId },
-  })
-
-  if (!dbUser) {
-    throw createError({
-      statusCode: 404,
-      message: 'User not found',
+  // Only ever deletes the current user's favorite
+  await withDatabaseErrorHandling(() =>
+    prisma.favorite.deleteMany({
+      where: {
+        userId: dbUser.id,
+        locationId,
+      },
     })
-  }
-
-  // Delete favorite
-  await prisma.favorite.deleteMany({
-    where: {
-      userId: dbUser.id,
-      locationId,
-    },
-  })
+  )
 
   return { success: true }
 })

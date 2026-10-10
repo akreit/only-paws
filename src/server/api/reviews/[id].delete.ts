@@ -1,23 +1,11 @@
 export default defineEventHandler(async (event) => {
-  const clerkUserId = await requireAuth(event)
+  const dbUser = await requireDbUser(event)
   const id = getRouterParam(event, 'id')
 
   if (!id) {
     throw createError({
       statusCode: 400,
       message: 'Review ID is required',
-    })
-  }
-
-  // Get database user
-  const dbUser = await prisma.user.findUnique({
-    where: { clerkUserId },
-  })
-
-  if (!dbUser) {
-    throw createError({
-      statusCode: 404,
-      message: 'User not found',
     })
   }
 

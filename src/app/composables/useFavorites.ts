@@ -1,18 +1,31 @@
+import type { Location } from '~/types'
+
+interface FavoriteEntry {
+  locationId: string
+  location: Location
+}
+
 export function useFavorites() {
   const userStore = useUserStore()
   const notifications = useNotificationsStore()
   const loading = ref(false)
 
-  async function fetchFavorites() {
+  // `silent` is for background loads, which log instead of toasting
+  async function fetchFavorites({ silent = false }: { silent?: boolean } = {}) {
     loading.value = true
 
     try {
-      const favorites = await $fetch<{ locationId: string }[]>('/api/favorites')
+      const favorites = await $fetch<FavoriteEntry[]>('/api/favorites')
       const locationIds = favorites.map((f) => f.locationId)
+      userStore.setFavoriteLocationCache(favorites.map((f) => f.location))
       userStore.setFavorites(locationIds)
       return locationIds
     } catch (error) {
-      notifications.error('Failed to fetch favorites')
+      if (silent) {
+        console.error('Failed to fetch favorites:', error)
+      } else {
+        notifications.error('Failed to fetch favorites')
+      }
       throw error
     } finally {
       loading.value = false
@@ -67,6 +80,10 @@ export function useFavorites() {
   return {
     loading,
     favorites: computed(() => userStore.favorites),
+    // Fetched locations that are still favorited, so unfavoriting drops them immediately
+    favoriteLocations: computed(() =>
+      userStore.favoriteLocationCache.filter((l) => userStore.favorites.includes(l.id))
+    ),
     isFavorite: userStore.isFavorite,
     fetchFavorites,
     addFavorite,

@@ -4,9 +4,18 @@ import { setActivePinia, createPinia } from 'pinia'
 import { useUserStore } from '~/stores/user'
 import { useNotificationsStore } from '~/stores/notifications'
 import { useFavorites } from '~/composables/useFavorites'
+import type { Location } from '~/types'
 import { createMockLocation } from '../../fixtures/factories'
 
 const fetchMock = vi.fn()
+
+function seedFavorites(locations: Location[]) {
+  useUserStore().$patch({
+    favorites: locations.map((l) => l.id),
+    favoriteLocationCache: locations,
+    favoritesLoaded: true,
+  })
+}
 
 function lastNotificationType() {
   return useNotificationsStore().notifications.at(-1)?.type
@@ -41,7 +50,7 @@ describe('useFavorites', () => {
   })
 
   it('fetchFavorites clears the list when the server returns none', async () => {
-    useUserStore().setFavorites(['old'])
+    seedFavorites([createMockLocation({ id: 'old' })])
     fetchMock.mockResolvedValue([])
     const { fetchFavorites, favorites, favoriteLocations } = useFavorites()
 
@@ -67,6 +76,37 @@ describe('useFavorites', () => {
     await expect(fetchFavorites({ silent: true })).rejects.toThrow('boom')
     expect(useNotificationsStore().notifications).toHaveLength(0)
     expect(console.error).toHaveBeenCalled()
+  })
+
+  it('ensureFavorites fetches when favorites are not loaded yet', async () => {
+    const a = createMockLocation({ id: 'a' })
+    fetchMock.mockResolvedValue([{ locationId: 'a', location: a }])
+    const { ensureFavorites, favorites } = useFavorites()
+
+    await ensureFavorites({ silent: true })
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(favorites.value).toEqual(['a'])
+    expect(useUserStore().favoritesLoaded).toBe(true)
+  })
+
+  it('ensureFavorites skips the request when already loaded', async () => {
+    seedFavorites([createMockLocation({ id: 'a' })])
+    const { ensureFavorites } = useFavorites()
+
+    expect(await ensureFavorites()).toEqual(['a'])
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('ensureFavorites fetches again after a reset', async () => {
+    seedFavorites([createMockLocation({ id: 'a' })])
+    useUserStore().reset()
+    fetchMock.mockResolvedValue([])
+    const { ensureFavorites } = useFavorites()
+
+    await ensureFavorites()
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
   it('addFavorite POSTs, updates the store and toasts success', async () => {
@@ -111,7 +151,7 @@ describe('useFavorites', () => {
   })
 
   it('removeFavorite toasts and keeps the favorite on failure', async () => {
-    useUserStore().setFavorites(['a'])
+    seedFavorites([createMockLocation({ id: 'a' })])
     fetchMock.mockRejectedValue(new Error('nope'))
     const { removeFavorite, isFavorite } = useFavorites()
 
@@ -134,7 +174,7 @@ describe('useFavorites', () => {
   })
 
   it('toggleFavorite removes a place already loaded as saved', async () => {
-    useUserStore().setFavorites(['a'])
+    seedFavorites([createMockLocation({ id: 'a' })])
     fetchMock.mockResolvedValue({})
     const { toggleFavorite, isFavorite } = useFavorites()
 
@@ -142,5 +182,50 @@ describe('useFavorites', () => {
 
     expect(fetchMock).toHaveBeenCalledWith('/api/favorites/a', { method: 'DELETE' })
     expect(isFavorite('a')).toBe(false)
+  })
+
+  it('concurrent fetch/ensure calls share one request; a later fetch makes a new one', async () => {
+    let resolve!: (v: unknown) => void
+    fetchMock.mockImplementationOnce(() => new Promise((r) => (resolve = r)))
+    const { fetchFavorites, ensureFavorites } = useFavorites()
+
+    const p1 = fetchFavorites({ silent: true })
+    const p2 = ensureFavorites({ silent: true })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    resolve([])
+    await Promise.all([p1, p2])
+
+    fetchMock.mockResolvedValue([])
+    await fetchFavorites()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('a shared failing request rejects every caller, each reporting its own way', async () => {
+    fetchMock.mockRejectedValue(new Error('boom'))
+    const { fetchFavorites, ensureFavorites } = useFavorites()
+
+    const results = await Promise.allSettled([fetchFavorites({ silent: true }), ensureFavorites()])
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(results.map((r) => r.status)).toEqual(['rejected', 'rejected'])
+    expect(useNotificationsStore().notifications).toHaveLength(1)
+  })
+
+  it('reset during an in-flight request: ensureFavorites starts a new one, old result dropped', async () => {
+    const a = createMockLocation({ id: 'a' })
+    const b = createMockLocation({ id: 'b' })
+    let resolveOld!: (v: unknown) => void
+    fetchMock.mockImplementationOnce(() => new Promise((r) => (resolveOld = r)))
+    const { fetchFavorites, ensureFavorites, favorites } = useFavorites()
+
+    const oldP = fetchFavorites({ silent: true })
+    useUserStore().reset()
+    fetchMock.mockResolvedValueOnce([{ locationId: 'b', location: b }])
+    await ensureFavorites()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+
+    resolveOld([{ locationId: 'a', location: a }])
+    await oldP
+    expect(favorites.value).toEqual(['b'])
   })
 })

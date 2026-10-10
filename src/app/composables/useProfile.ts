@@ -17,7 +17,7 @@ export function useProfile() {
 
     try {
       const data = await $fetch<ProfileResponse>('/api/users/profile')
-      userStore.setProfile(data.user)
+      userStore.setUser(data.user)
       return data
     } catch (error) {
       notifications.error('Failed to load profile')
@@ -35,7 +35,7 @@ export function useProfile() {
         method: 'PATCH',
         body: updates,
       })
-      userStore.setProfile(user)
+      userStore.setUser(user)
       notifications.success('Profile updated!')
       return user
     } catch (error) {
@@ -49,7 +49,7 @@ export function useProfile() {
   return {
     loading,
     saving,
-    profile: computed(() => userStore.profile),
+    profile: computed(() => userStore.user),
     fetchProfile,
     saveProfile,
   }

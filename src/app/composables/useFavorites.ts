@@ -15,11 +15,11 @@ export function useFavorites() {
     loading.value = true
 
     try {
-      const favorites = await $fetch<FavoriteEntry[]>('/api/favorites')
-      const locationIds = favorites.map((f) => f.locationId)
-      userStore.setFavoriteLocationCache(favorites.map((f) => f.location))
-      userStore.setFavorites(locationIds)
-      return locationIds
+      // Concurrent callers share one request; each handles a failure itself below
+      return await userStore.loadFavorites(async () => {
+        const entries = await $fetch<FavoriteEntry[]>('/api/favorites')
+        return entries.map((e) => e.location)
+      })
     } catch (error) {
       if (silent) {
         console.error('Failed to fetch favorites:', error)
@@ -30,6 +30,12 @@ export function useFavorites() {
     } finally {
       loading.value = false
     }
+  }
+
+  // Skips the request when favorites were already loaded (e.g. by useAuthSync)
+  async function ensureFavorites(options: { silent?: boolean } = {}) {
+    if (userStore.favoritesLoaded) return userStore.favorites
+    return fetchFavorites(options)
   }
 
   async function addFavorite(locationId: string) {
@@ -86,6 +92,7 @@ export function useFavorites() {
     ),
     isFavorite: userStore.isFavorite,
     fetchFavorites,
+    ensureFavorites,
     addFavorite,
     removeFavorite,
     toggleFavorite,

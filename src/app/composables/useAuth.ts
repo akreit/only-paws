@@ -2,43 +2,40 @@ import { useAuth as useClerkAuth, useUser as useClerkUser } from '@clerk/nuxt/co
 import type { User } from '~/types'
 
 export function useAuthSync() {
-  const { isSignedIn, isLoaded } = useClerkAuth()
+  const { isSignedIn } = useClerkAuth()
   const { user: clerkUser } = useClerkUser()
-  const authStore = useAuthStore()
   const userStore = useUserStore()
   const notifications = useNotificationsStore()
   const { fetchFavorites } = useFavorites()
 
-  const loading = ref(false)
-
-  function clearUserState() {
-    authStore.clearUser()
-    userStore.setProfile(null)
-    userStore.setFavorites([])
-    userStore.setFavoriteLocationCache([])
-  }
-
   // Sync Clerk user with our database
   async function syncUser() {
     if (!clerkUser.value) {
-      clearUserState()
+      userStore.reset()
       return
     }
 
-    loading.value = true
+    const clerkId = clerkUser.value.id
+    // Sign-out or account switch while a request was in flight: drop its result
+    const isStale = () => clerkUser.value?.id !== clerkId
+
+    // Clerk multi-session: don't keep showing the previous account's data
+    if (userStore.user?.clerkUserId !== clerkId) {
+      userStore.reset()
+    }
+
     try {
       const response = await $fetch<User>('/api/users/sync', {
         method: 'POST',
       })
+      if (isStale()) return
 
-      authStore.setUser(response)
-      userStore.setProfile(response)
+      userStore.setUser(response)
     } catch (error) {
+      if (isStale()) return
       console.error('Failed to sync user:', error)
       notifications.error('Failed to load user profile')
       return
-    } finally {
-      loading.value = false
     }
 
     // Load saved places once so hearts show the right state app-wide.
@@ -50,24 +47,19 @@ export function useAuthSync() {
     }
   }
 
-  // Watch for Clerk auth changes (registered from the client-only auth-sync plugin)
+  // Watch for Clerk auth changes (registered from the client-only auth-sync plugin).
+  // Keyed on the Clerk user id so unrelated user object updates don't re-sync.
   watch(
-    [isSignedIn, clerkUser],
-    async ([signedIn, user]) => {
-      if (signedIn && user) {
+    [isSignedIn, () => clerkUser.value?.id],
+    async ([signedIn, clerkId]) => {
+      if (signedIn && clerkId) {
         await syncUser()
       } else {
-        clearUserState()
+        userStore.reset()
       }
     },
     { immediate: true }
   )
 
-  return {
-    isSignedIn,
-    isLoaded,
-    user: computed(() => authStore.user),
-    loading,
-    syncUser,
-  }
+  return { syncUser }
 }

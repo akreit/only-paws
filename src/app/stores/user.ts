@@ -3,27 +3,23 @@ import { ref } from 'vue'
 import type { Location, User } from '~/types'
 
 export const useUserStore = defineStore('user', () => {
-  const profile = ref<User | null>(null)
+  const user = ref<User | null>(null)
   const favorites = ref<string[]>([])
   const favoriteLocationCache = ref<Location[]>([])
-  const loading = ref(false)
+  const favoritesLoaded = ref(false)
+  // Plain closure state (per Pinia instance, so nothing leaks across SSR requests).
+  // `generation` bumps on reset() so responses started before it can be dropped.
+  let generation = 0
+  let favoritesRequest: Promise<string[]> | null = null
 
-  function setProfile(user: User | null) {
-    profile.value = user
+  function setUser(userData: User | null) {
+    user.value = userData
   }
 
-  function updateProfile(updates: Partial<User>) {
-    if (profile.value) {
-      profile.value = { ...profile.value, ...updates }
-    }
-  }
-
-  function setFavorites(locationIds: string[]) {
-    favorites.value = locationIds
-  }
-
-  function setFavoriteLocationCache(locations: Location[]) {
+  function setFavorites(locations: Location[]) {
     favoriteLocationCache.value = locations
+    favorites.value = locations.map((l) => l.id)
+    favoritesLoaded.value = true
   }
 
   function addFavorite(locationId: string) {
@@ -39,21 +35,49 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
+  // Loads favorites through `fetcher`, sharing one in-flight request between callers.
+  // Every caller gets the same promise, so a rejection reaches all of them and each
+  // decides how to report it (silent log vs toast). A result that arrives after
+  // reset() is discarded without touching the store or favoritesLoaded.
+  function loadFavorites(fetcher: () => Promise<Location[]>): Promise<string[]> {
+    if (favoritesRequest) return favoritesRequest
+
+    const startedAt = generation
+    const request: Promise<string[]> = fetcher()
+      .then((locations) => {
+        if (startedAt === generation) setFavorites(locations)
+        return locations.map((l) => l.id)
+      })
+      .finally(() => {
+        if (favoritesRequest === request) favoritesRequest = null
+      })
+    favoritesRequest = request
+    return request
+  }
+
+  function reset() {
+    generation++
+    favoritesRequest = null
+    user.value = null
+    favorites.value = []
+    favoriteLocationCache.value = []
+    favoritesLoaded.value = false
+  }
+
   function isFavorite(locationId: string): boolean {
     return favorites.value.includes(locationId)
   }
 
   return {
-    profile,
+    user,
     favorites,
     favoriteLocationCache,
-    loading,
-    setProfile,
-    updateProfile,
-    setFavorites,
-    setFavoriteLocationCache,
+    favoritesLoaded,
+    setUser,
+    loadFavorites,
     addFavorite,
     removeFavorite,
+    reset,
     isFavorite,
   }
 })

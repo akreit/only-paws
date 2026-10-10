@@ -1,16 +1,47 @@
+export const LOOKING_FOR_VALUES = ['FRIENDS', 'PLACES', 'TIPS', 'PLAYDATES'] as const
+
+export type LookingFor = (typeof LOOKING_FOR_VALUES)[number]
+
+export const LOOKING_FOR_LABELS: Record<LookingFor, string> = {
+  FRIENDS: '🤝 Friends',
+  PLACES: '📍 Places',
+  TIPS: '💡 Tips',
+  PLAYDATES: '🐕 Playdates',
+}
+
 export interface User {
   id: string
   clerkUserId: string
   email?: string
   username?: string
-  bio?: string
+  bio?: string | null
   avatarUrl?: string
+  homeCity?: string | null
+  hasDog?: boolean
+  dogName?: string | null
+  dogBreed?: string | null
+  lookingFor?: LookingFor[]
   createdAt: Date
   updatedAt: Date
 }
 
 export interface UpdateUserInput {
   username?: string
-  bio?: string
+  bio?: string | null
   avatarUrl?: string
+  homeCity?: string | null
+  hasDog?: boolean
+  dogName?: string | null
+  dogBreed?: string | null
+  lookingFor?: LookingFor[]
+}
+
+/** Fields editable through PATCH /api/users/profile */
+export interface ProfileUpdateInput {
+  bio?: string | null
+  homeCity?: string | null
+  hasDog?: boolean
+  dogName?: string | null
+  dogBreed?: string | null
+  lookingFor?: LookingFor[]
 }

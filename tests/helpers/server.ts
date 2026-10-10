@@ -11,6 +11,7 @@ export function setupServerMocks() {
     },
     user: {
       findUnique: vi.fn(),
+      update: vi.fn(),
     },
     $queryRaw: vi.fn(),
   }

@@ -40,6 +40,35 @@
       </div>
     </div>
 
+    <!-- Marker Legend (hidden on small screens while the preview card is open) -->
+    <div
+      :class="[
+        'absolute bottom-8 left-4 z-10 max-w-[calc(100%-2rem)]',
+        selectedPlace || placeDetailsLoading ? 'hidden sm:block' : '',
+      ]"
+    >
+      <button
+        type="button"
+        class="rounded-lg bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-lg hover:bg-gray-50"
+        :aria-expanded="showLegend"
+        aria-controls="map-legend"
+        @click="showLegend = !showLegend"
+      >
+        {{ showLegend ? 'Hide legend' : 'Legend' }}
+      </button>
+      <ul
+        v-show="showLegend"
+        id="map-legend"
+        aria-label="Map marker legend"
+        class="mt-2 max-h-[40vh] overflow-y-auto rounded-lg bg-white p-3 shadow-lg"
+      >
+        <li v-for="type in locationTypes" :key="type.value" class="flex items-center gap-2 py-0.5">
+          <img :src="type.markerUrl" alt="" class="h-[25px] w-[18px]" />
+          <span class="text-sm text-gray-700">{{ type.label }}</span>
+        </li>
+      </ul>
+    </div>
+
     <div v-if="placeDetailsLoading" class="absolute bottom-4 right-4 z-10">
       <div class="flex items-center gap-2 rounded-lg bg-white px-4 py-2 shadow-lg">
         <LoadingSpinner size="sm" />
@@ -83,7 +112,8 @@ import {
   type GooglePlaceDetails,
 } from '~/types'
 import { debounce } from '~/utils/helpers'
-import { LOCATION_TYPE_LABELS, LOCATION_TYPE_ICONS, LOCATION_TYPE_COLORS } from '~/utils/constants'
+import { LOCATION_TYPE_LABELS, LOCATION_TYPE_ICONS } from '~/utils/constants'
+import { getMarkerIcon, type MarkerIconDefinition } from '~/utils/map-markers'
 import {
   buildLocationInputFromGooglePlace,
   inferLocationTypeFromGoogleTypes,
@@ -110,11 +140,14 @@ let mapInstance: google.maps.Map | null = null
 const markers: google.maps.Marker[] = []
 let mapClickListener: google.maps.MapsEventListener | null = null
 
+const showLegend = ref(false)
+
 const locationTypes = computed(() => {
   return Object.values(LocationType).map((type) => ({
     value: type,
     label: LOCATION_TYPE_LABELS[type],
     icon: LOCATION_TYPE_ICONS[type],
+    markerUrl: getMarkerIcon(type).url,
   }))
 })
 
@@ -233,6 +266,14 @@ async function loadLocations() {
   }
 }
 
+function toGoogleIcon(icon: MarkerIconDefinition): google.maps.Icon {
+  return {
+    url: icon.url,
+    scaledSize: new google.maps.Size(icon.size.width, icon.size.height),
+    anchor: new google.maps.Point(icon.anchor.x, icon.anchor.y),
+  }
+}
+
 function updateMarkers() {
   if (!mapInstance) return
 
@@ -246,14 +287,7 @@ function updateMarkers() {
       map: mapInstance!,
       position: { lat: location.latitude, lng: location.longitude },
       title: location.name,
-      icon: {
-        path: google.maps.SymbolPath.CIRCLE,
-        fillColor: LOCATION_TYPE_COLORS[location.type],
-        fillOpacity: 1,
-        strokeColor: '#ffffff',
-        strokeWeight: 2,
-        scale: 10,
-      },
+      icon: toGoogleIcon(getMarkerIcon(location.type)),
       onClick: () => {
         navigateTo(`/locations/${location.id}`)
       },

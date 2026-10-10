@@ -1,5 +1,6 @@
 import { vi } from 'vitest'
 import { withDatabaseErrorHandling } from '../../src/server/utils/database'
+import { requireDbUser } from '../../src/server/utils/user'
 
 export function setupServerMocks() {
   const prisma = {
@@ -12,6 +13,12 @@ export function setupServerMocks() {
     user: {
       findUnique: vi.fn(),
       update: vi.fn(),
+      upsert: vi.fn(),
+    },
+    favorite: {
+      findMany: vi.fn(),
+      upsert: vi.fn(),
+      deleteMany: vi.fn(),
     },
     $queryRaw: vi.fn(),
   }
@@ -35,6 +42,8 @@ export function setupServerMocks() {
   vi.stubGlobal('createError', createError)
   vi.stubGlobal('defineEventHandler', defineEventHandler)
   vi.stubGlobal('withDatabaseErrorHandling', withDatabaseErrorHandling)
+  // Real implementation, driven by the mocked requireAuth/prisma
+  vi.stubGlobal('requireDbUser', requireDbUser)
 
   return {
     prisma,

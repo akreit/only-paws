@@ -1,9 +1,9 @@
 export default defineEventHandler(async (event) => {
-  const clerkUserId = await requireAuth(event)
+  const { id } = await requireDbUser(event)
 
   // Get database user with related data
   const dbUser = await prisma.user.findUnique({
-    where: { clerkUserId },
+    where: { id },
     include: {
       locations: {
         include: {

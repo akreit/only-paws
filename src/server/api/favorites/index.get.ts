@@ -1,23 +1,42 @@
 export default defineEventHandler(async (event) => {
-  const clerkUserId = await requireAuth(event)
+  const dbUser = await requireDbUser(event)
 
-  // Get database user
-  const dbUser = await prisma.user.findUnique({
-    where: { clerkUserId },
-  })
-
-  if (!dbUser) {
-    throw createError({
-      statusCode: 404,
-      message: 'User not found',
+  const favorites = await withDatabaseErrorHandling(() =>
+    prisma.favorite.findMany({
+      where: { userId: dbUser.id },
+      include: {
+        location: {
+          include: {
+            photos: {
+              take: 1,
+              orderBy: { createdAt: 'desc' },
+            },
+            reviews: true,
+            _count: {
+              select: {
+                reviews: true,
+                photos: true,
+                favorites: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
     })
-  }
+  )
 
-  // Get user's favorites
-  const favorites = await prisma.favorite.findMany({
-    where: { userId: dbUser.id },
-    select: { locationId: true },
+  // Same location shape as GET /api/locations
+  return favorites.map(({ locationId, location }) => {
+    const reviews = location.reviews ?? []
+    const averageRating =
+      reviews.length > 0
+        ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length
+        : 0
+
+    return {
+      locationId,
+      location: { ...location, averageRating },
+    }
   })
-
-  return favorites
 })

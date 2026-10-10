@@ -342,9 +342,9 @@ import Input from '~/components/ui/Input.vue'
 import { useProfile } from '~/composables/useProfile'
 import LoadingSpinner from '~/components/ui/LoadingSpinner.vue'
 
-const { isSignedIn } = useAuth()
+const { isSignedIn, isLoaded } = useAuth()
 const { user } = useUser()
-const { fetchFavorites } = useFavorites()
+const { fetchFavorites, favoriteLocations } = useFavorites()
 const { profile, saving, fetchProfile, saveProfile } = useProfile()
 
 const loading = ref(true)
@@ -358,14 +358,23 @@ const tabs = [
 
 const userLocations = ref<Location[]>([])
 const userReviews = ref<Review[]>([])
-const favoriteLocations = ref<Location[]>([])
 
-onMounted(async () => {
-  if (isSignedIn.value) {
-    await Promise.all([loadUserData(), loadFavorites()])
-  }
-  loading.value = false
-})
+// Load once Clerk has resolved auth (it may not be ready yet on a hard refresh)
+watch(
+  [isLoaded, isSignedIn],
+  async ([loaded, signedIn]) => {
+    if (!loaded) return
+    if (signedIn) {
+      loading.value = true
+      await Promise.all([loadUserData(), loadFavorites()])
+    } else {
+      userLocations.value = []
+      userReviews.value = []
+    }
+    loading.value = false
+  },
+  { immediate: true }
+)
 
 async function loadUserData() {
   try {
@@ -436,13 +445,7 @@ async function handleSave() {
 
 async function loadFavorites() {
   try {
-    const favoriteIds = await fetchFavorites()
-
-    // Fetch full location data for favorites
-    if (favoriteIds.length > 0) {
-      const locations = await $fetch<Location[]>('/api/locations')
-      favoriteLocations.value = locations.filter((loc) => favoriteIds.includes(loc.id))
-    }
+    await fetchFavorites()
   } catch (error) {
     console.error('Failed to load favorites:', error)
   }

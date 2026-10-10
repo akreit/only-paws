@@ -1,15 +1,9 @@
 export default defineEventHandler(async (event) => {
+  const clerkUserId = await requireAuth(event)
   const body = await readBody(event)
-  const { clerkUserId, email, username, avatarUrl } = body
+  const { email, username, avatarUrl } = body ?? {}
 
-  if (!clerkUserId) {
-    throw createError({
-      statusCode: 400,
-      message: 'Clerk user ID is required',
-    })
-  }
-
-  // Find or create user
+  // The authenticated Clerk id is the only identity; any clerkUserId in the body is ignored
   const user = await withDatabaseErrorHandling(() =>
     prisma.user.upsert({
       where: { clerkUserId },

@@ -7,14 +7,21 @@ export function useAuthSync() {
   const authStore = useAuthStore()
   const userStore = useUserStore()
   const notifications = useNotificationsStore()
+  const { fetchFavorites } = useFavorites()
 
   const loading = ref(false)
+
+  function clearUserState() {
+    authStore.clearUser()
+    userStore.setProfile(null)
+    userStore.setFavorites([])
+    userStore.setFavoriteLocations([])
+  }
 
   // Sync Clerk user with our database
   async function syncUser() {
     if (!clerkUser.value) {
-      authStore.clearUser()
-      userStore.setProfile(null)
+      clearUserState()
       return
     }
 
@@ -23,7 +30,6 @@ export function useAuthSync() {
       const response = await $fetch<User>('/api/users/sync', {
         method: 'POST',
         body: {
-          clerkUserId: clerkUser.value.id,
           email: clerkUser.value.primaryEmailAddress?.emailAddress,
           username: clerkUser.value.username,
           avatarUrl: clerkUser.value.imageUrl,
@@ -35,24 +41,35 @@ export function useAuthSync() {
     } catch (error) {
       console.error('Failed to sync user:', error)
       notifications.error('Failed to load user profile')
+      return
     } finally {
       loading.value = false
     }
+
+    // Load saved places once so hearts show the right state app-wide.
+    // Background load: failures are logged, not toasted.
+    try {
+      await fetchFavorites({ silent: true })
+    } catch {
+      // already logged by fetchFavorites
+    }
   }
 
-  // Watch for Clerk auth changes
-  watch(
-    [isSignedIn, clerkUser],
-    async ([signedIn, user]) => {
-      if (signedIn && user) {
-        await syncUser()
-      } else {
-        authStore.clearUser()
-        userStore.setProfile(null)
-      }
-    },
-    { immediate: true }
-  )
+  // Watch for Clerk auth changes. Client only: during SSR there is no session
+  // to forward, so a sync request would be unauthenticated and toast an error.
+  if (!import.meta.server) {
+    watch(
+      [isSignedIn, clerkUser],
+      async ([signedIn, user]) => {
+        if (signedIn && user) {
+          await syncUser()
+        } else {
+          clearUserState()
+        }
+      },
+      { immediate: true }
+    )
+  }
 
   return {
     isSignedIn,

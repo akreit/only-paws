@@ -15,9 +15,35 @@ describe('GET /api/users/profile', () => {
       return err
     })
     mocks.requireAuth.mockResolvedValue('clerk_123')
+    mocks.prisma.user.upsert.mockResolvedValue({ id: 'user_1', clerkUserId: 'clerk_123' })
   })
 
-  it('returns 404 when the user does not exist', async () => {
+  it('requires authentication', async () => {
+    mocks.requireAuth.mockRejectedValue(new Error('Unauthorized'))
+    await expect(handler(createMockEvent())).rejects.toThrow('Unauthorized')
+    expect(mocks.prisma.user.findUnique).not.toHaveBeenCalled()
+  })
+
+  it('creates the database user on first request instead of returning 404', async () => {
+    mocks.prisma.user.findUnique.mockResolvedValue({
+      ...createMockUser(),
+      locations: [],
+      reviews: [],
+    })
+
+    await handler(createMockEvent())
+
+    expect(mocks.prisma.user.upsert).toHaveBeenCalledWith({
+      where: { clerkUserId: 'clerk_123' },
+      update: {},
+      create: { clerkUserId: 'clerk_123' },
+    })
+    expect(mocks.prisma.user.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'user_1' } })
+    )
+  })
+
+  it('returns 404 if the user disappears between upsert and load', async () => {
     mocks.prisma.user.findUnique.mockResolvedValue(null)
     await expect(handler(createMockEvent())).rejects.toThrow('User not found')
   })

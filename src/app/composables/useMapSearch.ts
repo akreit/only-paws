@@ -8,7 +8,6 @@ import {
   type PlaceSuggestion,
   type SearchResultItem,
 } from '~/utils/map-search'
-import { locationToPlaceDetails } from '~/utils/google-place'
 import { useLocations } from '~/composables/useLocations'
 import { useMap } from '~/composables/useMap'
 import { usePlacesSearch } from '~/composables/usePlacesSearch'
@@ -141,15 +140,19 @@ export function useMapSearch(options: UseMapSearchOptions) {
     return result
   }
 
+  /** Opens the stored-place panel for a saved location (replaces any other selection). */
+  function openLocation(location: Location) {
+    dismiss()
+    selectedSavedLocation.value = location
+  }
+
   async function select(item: SearchResultItem) {
     const map = getMap()
     if (!map) return
 
     if (item.kind === 'saved') {
-      dismiss()
       const { location } = item
-      selectedSavedLocation.value = location
-      selectedPlace.value = locationToPlaceDetails(location)
+      openLocation(location)
       map.panTo({ lat: location.latitude, lng: location.longitude })
       map.setZoom(16)
       return
@@ -205,6 +208,7 @@ export function useMapSearch(options: UseMapSearchOptions) {
     selectedSavedLocation,
     placeDetailsLoading,
     select,
+    openLocation,
     selectPlaceId,
     dismiss,
     refreshLocations,

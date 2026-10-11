@@ -36,8 +36,12 @@ test.describe('Map Page', () => {
     await searchInput.press('ArrowDown')
     await searchInput.press('Enter')
 
-    await expect(page.getByRole('button', { name: /open in only paws/i })).toBeVisible()
-    await expect(page.getByRole('heading', { name: 'Cubbon Park Dog Run' })).toBeVisible()
+    const panel = page.getByRole('dialog', { name: 'Cubbon Park Dog Run' })
+    await expect(panel).toBeVisible()
+    await expect(panel.getByRole('link', { name: 'Details' })).toBeVisible()
+
+    await page.keyboard.press('Escape')
+    await expect(panel).toBeHidden()
   })
 
   test('should display location type filters', async ({ page }) => {

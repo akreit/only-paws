@@ -3,42 +3,60 @@
     <!-- Map Container -->
     <div ref="mapContainer" class="h-full w-full" />
 
-    <!-- Controls Overlay -->
-    <div class="absolute left-4 right-4 top-4 z-10">
-      <!-- Search & Filters -->
-      <div class="max-w-md rounded-lg bg-white p-4 shadow-lg">
-        <MapSearchBox
-          v-model="search.query.value"
-          :model="search.model.value"
-          :loading="search.loading.value"
-          :places-unavailable="search.placesUnavailable.value"
-          @select="search.select"
-          @focus="prefetchPlaces"
-        />
+    <!-- Left column (sm+): search controls with the stored-place panel docked beneath.
+         On mobile the children position themselves (the panel becomes a bottom sheet). -->
+    <div
+      class="pointer-events-none sm:absolute sm:bottom-4 sm:left-4 sm:top-4 sm:z-10 sm:flex sm:w-[min(28rem,calc(100%-2rem))] sm:flex-col sm:gap-3"
+    >
+      <!-- Controls Overlay -->
+      <div class="pointer-events-auto absolute left-4 right-4 top-4 z-10 sm:static">
+        <!-- Search & Filters -->
+        <div class="max-w-md rounded-lg bg-white p-4 shadow-lg">
+          <MapSearchBox
+            v-model="search.query.value"
+            :model="search.model.value"
+            :loading="search.loading.value"
+            :places-unavailable="search.placesUnavailable.value"
+            @select="search.select"
+            @focus="prefetchPlaces"
+          />
 
-        <div class="mt-3 flex flex-wrap gap-2">
-          <button
-            v-for="type in locationTypes"
-            :key="type.value"
-            :class="[
-              'rounded-full px-3 py-1.5 text-sm font-medium transition-colors',
-              selectedType === type.value
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200',
-            ]"
-            @click="toggleFilter(type.value)"
-          >
-            {{ type.icon }} {{ type.label }}
-          </button>
+          <div class="mt-3 flex flex-wrap gap-2">
+            <button
+              v-for="type in locationTypes"
+              :key="type.value"
+              :class="[
+                'rounded-full px-3 py-1.5 text-sm font-medium transition-colors',
+                selectedType === type.value
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200',
+              ]"
+              @click="toggleFilter(type.value)"
+            >
+              {{ type.icon }} {{ type.label }}
+            </button>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- Saved places unavailable (e.g. database down); map stays usable -->
-    <div v-if="locationsError" class="absolute left-4 top-44 z-10 max-w-md" role="status">
-      <div class="rounded-lg bg-amber-50 px-4 py-2 text-sm text-amber-800 shadow-lg">
-        {{ locationsError }}. You can still explore the map.
+      <!-- Saved places unavailable (e.g. database down); map stays usable -->
+      <div
+        v-if="locationsError"
+        class="pointer-events-auto absolute left-4 right-4 top-44 z-10 max-w-md sm:static"
+        role="status"
+      >
+        <div class="rounded-lg bg-amber-50 px-4 py-2 text-sm text-amber-800 shadow-lg">
+          {{ locationsError }}. You can still explore the map.
+        </div>
       </div>
+
+      <!-- Stored place: bottom sheet on mobile, docked under the search on sm+ -->
+      <MapLocationPanel
+        v-if="selectedSavedLocation"
+        :location="selectedSavedLocation"
+        class="pointer-events-auto absolute inset-x-0 bottom-0 z-20 sm:static sm:min-h-0 sm:w-96 sm:max-w-full"
+        @close="search.dismiss"
+      />
     </div>
 
     <!-- Loading Indicator -->
@@ -49,10 +67,12 @@
       </div>
     </div>
 
-    <!-- Marker Legend (hidden on small screens while the preview card is open) -->
+    <!-- Marker Legend: hidden while the stored-place panel is open (it shares the left column /
+         bottom edge) and on small screens while the preview card is open -->
     <div
       :class="[
         'absolute bottom-8 left-4 z-10 max-w-[calc(100%-2rem)]',
+        selectedSavedLocation ? 'hidden' : '',
         selectedPlace || placeDetailsLoading ? 'hidden sm:block' : '',
       ]"
     >
@@ -126,6 +146,7 @@ import { useMapSearch } from '~/composables/useMapSearch'
 import LoadingSpinner from '~/components/ui/LoadingSpinner.vue'
 import Modal from '~/components/ui/Modal.vue'
 import AddLocationForm from '~/components/location/AddLocationForm.vue'
+import MapLocationPanel from '~/components/location/MapLocationPanel.vue'
 import MapPlacePreviewCard from '~/components/location/MapPlacePreviewCard.vue'
 
 const { isSignedIn } = useAuth()
@@ -165,10 +186,6 @@ const locationTypes = computed(() => {
 })
 
 const existingLocationForSelectedPlace = computed<Location | null>(() => {
-  if (selectedSavedLocation.value) {
-    return selectedSavedLocation.value
-  }
-
   if (!selectedPlace.value?.placeId) {
     return null
   }
@@ -180,10 +197,6 @@ const existingLocationForSelectedPlace = computed<Location | null>(() => {
 })
 
 const selectedPlaceLocationType = computed(() => {
-  if (selectedSavedLocation.value) {
-    return selectedSavedLocation.value.type
-  }
-
   return selectedPlace.value
     ? inferLocationTypeFromGoogleTypes(selectedPlace.value.types)
     : LocationType.OTHER
@@ -258,9 +271,7 @@ function updateMarkers() {
       position: { lat: location.latitude, lng: location.longitude },
       title: location.name,
       icon: toGoogleIcon(getMarkerIcon(location.type)),
-      onClick: () => {
-        navigateTo(`/locations/${location.id}`)
-      },
+      onClick: () => search.openLocation(location),
     })
 
     markers.push(marker)
@@ -275,7 +286,7 @@ async function handleAddSelectedPlace() {
   if (!selectedPlace.value) return
 
   if (existingLocationForSelectedPlace.value) {
-    await handleOpenLocation(existingLocationForSelectedPlace.value.id)
+    search.openLocation(existingLocationForSelectedPlace.value)
     return
   }
 
@@ -283,6 +294,12 @@ async function handleAddSelectedPlace() {
 }
 
 async function handleOpenLocation(locationId: string) {
+  const location = locations.value.find((item) => item.id === locationId)
+  if (location) {
+    search.openLocation(location)
+    return
+  }
+  // Not in the loaded list (e.g. filtered out): fall back to the full page
   search.dismiss()
   await navigateTo(`/locations/${locationId}`)
 }

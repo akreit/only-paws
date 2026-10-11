@@ -74,14 +74,47 @@ describe('MapLocationPanel', () => {
     expect(link?.attributes('href')).toBe('/locations/abc')
   })
 
-  it('emits close from the X button and the Escape key', async () => {
+  it('shows the numeric rating and a formatted phone number', () => {
+    const w = factory({ averageRating: 4.5, phone: '5551234567' })
+
+    expect(w.text()).toContain('4.5')
+    expect(w.find('a[href="tel:5551234567"]').text()).toBe('(555) 123-4567')
+  })
+
+  it('emits close from the X button and the Escape key inside the panel', async () => {
     const w = factory()
 
     await w.find('button[aria-label="Close place details"]').trigger('click')
+    await w.find('h2').trigger('keydown', { key: 'Escape' })
+    await w.find('h2').trigger('keydown', { key: 'a' })
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'a' }))
 
     expect(w.emitted('close')).toHaveLength(2)
+  })
+
+  it('restores focus to the opener on close', async () => {
+    const opener = document.createElement('button')
+    document.body.appendChild(opener)
+    opener.focus()
+
+    const w = factory()
+    await w.vm.$nextTick()
+    await w.vm.$nextTick()
+    expect(document.activeElement).toBe(w.find('h2').element)
+
+    w.unmount()
+    expect(document.activeElement).toBe(opener)
+    opener.remove()
+  })
+
+  it('does not restore focus to a detached opener', () => {
+    const opener = document.createElement('button')
+    document.body.appendChild(opener)
+    opener.focus()
+
+    const w = factory()
+    opener.remove()
+    expect(() => w.unmount()).not.toThrow()
   })
 
   it('focuses the heading when opened', async () => {

@@ -39,9 +39,63 @@ test.describe('Map Page', () => {
     const panel = page.getByRole('dialog', { name: 'Cubbon Park Dog Run' })
     await expect(panel).toBeVisible()
     await expect(panel.getByRole('link', { name: 'Details' })).toBeVisible()
+    await expect(page).toHaveURL(/[?&]place=/)
 
     await page.keyboard.press('Escape')
     await expect(panel).toBeHidden()
+    await expect(page).not.toHaveURL(/[?&]place=/)
+  })
+
+  test('should restore the open place panel after a reload', async ({ page }) => {
+    const initialLoad = page.waitForResponse((response) =>
+      response.url().includes('/api/locations')
+    )
+    await page.goto('/map')
+    await initialLoad
+
+    const searchInput = page.getByRole('combobox', { name: /search/i })
+    await searchInput.fill('Cubbon')
+    await expect(page.getByRole('option', { name: /Cubbon Park Dog Run/i })).toBeVisible()
+    await searchInput.press('ArrowDown')
+    await searchInput.press('Enter')
+
+    const panel = page.getByRole('dialog', { name: 'Cubbon Park Dog Run' })
+    await expect(panel).toBeVisible()
+    await expect(page).toHaveURL(/[?&]place=/)
+
+    await page.reload()
+    await expect(page.getByRole('dialog', { name: 'Cubbon Park Dog Run' })).toBeVisible()
+  })
+
+  test('should close the panel with Back and restore it when returning from Details', async ({
+    page,
+  }) => {
+    const initialLoad = page.waitForResponse((response) =>
+      response.url().includes('/api/locations')
+    )
+    await page.goto('/map')
+    await initialLoad
+
+    const searchInput = page.getByRole('combobox', { name: /search/i })
+    await searchInput.fill('Cubbon')
+    await expect(page.getByRole('option', { name: /Cubbon Park Dog Run/i })).toBeVisible()
+    await searchInput.press('ArrowDown')
+    await searchInput.press('Enter')
+
+    const panel = page.getByRole('dialog', { name: 'Cubbon Park Dog Run' })
+    await expect(panel).toBeVisible()
+
+    // Details -> Back restores the panel
+    await panel.getByRole('link', { name: 'Details' }).click()
+    await expect(page).toHaveURL(/\/locations\//)
+    await page.goBack()
+    await expect(page).toHaveURL(/\/map\?.*place=/)
+    await expect(page.getByRole('dialog', { name: 'Cubbon Park Dog Run' })).toBeVisible()
+
+    // Back (e.g. the mobile hardware button) closes the panel and stays on the map
+    await page.goBack()
+    await expect(page).toHaveURL(/\/map$/)
+    await expect(page.getByRole('dialog', { name: 'Cubbon Park Dog Run' })).toBeHidden()
   })
 
   test('should display location type filters', async ({ page }) => {

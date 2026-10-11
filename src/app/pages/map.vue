@@ -55,7 +55,7 @@
         v-if="selectedSavedLocation"
         :location="selectedSavedLocation"
         class="pointer-events-auto absolute inset-x-0 bottom-0 z-20 sm:static sm:min-h-0 sm:w-96 sm:max-w-full"
-        @close="search.dismiss"
+        @close="dismissAll"
       />
     </div>
 
@@ -112,7 +112,7 @@
       :is-signed-in="!!isSignedIn"
       :existing-location-id="existingLocationForSelectedPlace?.id"
       @add="handleAddSelectedPlace"
-      @dismiss="search.dismiss"
+      @dismiss="dismissAll"
       @open-location="handleOpenLocation"
     />
   </div>
@@ -142,6 +142,7 @@ import {
   inferLocationTypeFromGoogleTypes,
 } from '~/utils/google-place'
 import MapSearchBox from '~/components/map/MapSearchBox.vue'
+import { useMapPlaceQuery } from '~/composables/useMapPlaceQuery'
 import { useMapSearch } from '~/composables/useMapSearch'
 import LoadingSpinner from '~/components/ui/LoadingSpinner.vue'
 import Modal from '~/components/ui/Modal.vue'
@@ -150,6 +151,8 @@ import MapLocationPanel from '~/components/location/MapLocationPanel.vue'
 import MapPlacePreviewCard from '~/components/location/MapPlacePreviewCard.vue'
 
 const { isSignedIn } = useAuth()
+const route = useRoute()
+const router = useRouter()
 const { locations, loading, error: locationsError } = useLocations()
 const { loadGoogleMaps, initializeMap, centerOnUserOnce, createMarker, prefetchPlaces } = useMap()
 
@@ -161,6 +164,8 @@ let mapInstance: google.maps.Map | null = null
 const markers: google.maps.Marker[] = []
 let mapClickListener: google.maps.MapsEventListener | null = null
 let mounted = false
+// Place opened from the URL before the map existed; focused once it does
+let pendingFocus: Location | null = null
 
 // Start downloading the Maps JS as early as possible (before hydration finishes)
 if (import.meta.client) {
@@ -171,8 +176,28 @@ const search = useMapSearch({
   getMap: () => mapInstance,
   selectedType,
   onLocationsUpdated: updateMarkers,
+  requestOpenLocation: (location) => placeQuery.open(location),
 })
 const { selectedPlace, selectedSavedLocation, placeDetailsLoading } = search
+
+const placeQuery = useMapPlaceQuery({
+  route,
+  router,
+  locations,
+  selectedSavedLocation,
+  openLocation: search.openLocation,
+  closeLocation: search.dismiss,
+  focusLocation,
+  fetchLocation: (id) => $fetch<Location>(`/api/locations/${id}`),
+})
+
+// A Google place preview replaces the stored-place panel, so drop it from the URL
+watch(
+  () => !!selectedPlace.value || placeDetailsLoading.value,
+  (active) => {
+    if (active) placeQuery.clear()
+  }
+)
 
 const showLegend = ref(false)
 
@@ -227,6 +252,7 @@ async function initMap() {
   try {
     mapInstance = await initializeMap(mapContainer.value)
     bindPlaceClickListener()
+    if (pendingFocus) focusLocation(pendingFocus)
   } catch (error) {
     console.error('Failed to initialize map:', error)
   }
@@ -249,7 +275,7 @@ function handleMapClick(event: google.maps.MapMouseEvent) {
   const { placeId } = placeClickEvent
 
   if (!placeId) {
-    search.dismiss()
+    dismissAll()
     return
   }
 
@@ -271,11 +297,27 @@ function updateMarkers() {
       position: { lat: location.latitude, lng: location.longitude },
       title: location.name,
       icon: toGoogleIcon(getMarkerIcon(location.type)),
-      onClick: () => search.openLocation(location),
+      onClick: () => placeQuery.open(location),
     })
 
     markers.push(marker)
   })
+}
+
+function focusLocation(location: Location) {
+  if (!mapInstance) {
+    pendingFocus = location
+    return
+  }
+  pendingFocus = null
+  mapInstance.panTo({ lat: location.latitude, lng: location.longitude })
+  mapInstance.setZoom(16)
+}
+
+/** Closes whatever is open (stored panel or Google preview) and removes `place` from the URL. */
+function dismissAll() {
+  search.dismiss()
+  placeQuery.clear()
 }
 
 function toggleFilter(type: LocationType) {
@@ -286,27 +328,20 @@ async function handleAddSelectedPlace() {
   if (!selectedPlace.value) return
 
   if (existingLocationForSelectedPlace.value) {
-    search.openLocation(existingLocationForSelectedPlace.value)
+    placeQuery.open(existingLocationForSelectedPlace.value)
     return
   }
 
   showAddModal.value = true
 }
 
-async function handleOpenLocation(locationId: string) {
-  const location = locations.value.find((item) => item.id === locationId)
-  if (location) {
-    search.openLocation(location)
-    return
-  }
-  // Not in the loaded list (e.g. filtered out): fall back to the full page
-  search.dismiss()
-  await navigateTo(`/locations/${locationId}`)
+function handleOpenLocation(locationId: string) {
+  placeQuery.openById(locationId)
 }
 
 async function handleLocationAdded(location: Location) {
   showAddModal.value = false
-  search.dismiss()
+  dismissAll()
   await search.refreshLocations()
   await navigateTo(`/locations/${location.id}`)
 }

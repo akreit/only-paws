@@ -3,9 +3,14 @@
     role="dialog"
     aria-modal="false"
     :aria-labelledby="headingId"
-    class="flex max-h-[60vh] flex-col overflow-y-auto bg-white shadow-2xl max-sm:rounded-t-2xl sm:max-h-full sm:rounded-2xl"
+    class="flex max-h-[60vh] flex-col overflow-y-auto bg-white shadow-2xl max-sm:rounded-t-2xl max-sm:pb-[env(safe-area-inset-bottom)] sm:max-h-full sm:rounded-2xl"
     data-testid="map-location-panel"
+    @keydown.esc="emit('close')"
   >
+    <div
+      aria-hidden="true"
+      class="mx-auto mt-2 h-1.5 w-10 flex-shrink-0 rounded-full bg-gray-300 sm:hidden"
+    />
     <img
       v-if="photo"
       :src="photo.url"
@@ -53,6 +58,7 @@
 
       <div class="flex items-center gap-2 text-sm text-gray-600">
         <Rating :model-value="location.averageRating || 0" :readonly="true" size="sm" />
+        <span v-if="location.averageRating">{{ formatRating(location.averageRating) }}</span>
         <span>({{ reviewCount }} {{ reviewCount === 1 ? 'review' : 'reviews' }})</span>
         <span v-if="favoriteCount" class="text-gray-500">· ❤️ {{ favoriteCount }}</span>
       </div>
@@ -81,7 +87,7 @@
         <div v-if="location.phone">
           📞
           <a :href="`tel:${location.phone}`" class="text-blue-600 hover:underline">
-            {{ location.phone }}
+            {{ formatPhoneNumber(location.phone) }}
           </a>
         </div>
         <div v-if="location.website">
@@ -111,7 +117,9 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { Location } from '~/types'
 import { LOCATION_TYPE_LABELS, LOCATION_TYPE_ICONS, LOCATION_TYPE_COLORS } from '~/utils/constants'
+import { formatPhoneNumber, formatRating } from '~/utils/formatters'
 import { parseAmenities } from '~/utils/helpers'
+import { locationFeatureLabels } from '~/utils/location-features'
 import Rating from '~/components/ui/Rating.vue'
 
 interface Props {
@@ -129,37 +137,26 @@ const reviewCount = computed(
 )
 const favoriteCount = computed(() => props.location._count?.favorites ?? 0)
 
-const features = computed(() => {
-  const { leashRequired, offLeashArea, breedRestrictions, amenities } = props.location
-  const list: string[] = []
-  if (leashRequired === true) list.push('Leash required')
-  if (leashRequired === false) list.push('Leash optional')
-  if (offLeashArea) list.push('Off-leash area')
-  if (breedRestrictions) list.push(`Breed restrictions: ${breedRestrictions}`)
-  return [...list, ...parseAmenities(amenities)]
-})
-
-function onKeydown(event: KeyboardEvent) {
-  if (event.key === 'Escape') emit('close')
-}
+const features = computed(() => [
+  ...locationFeatureLabels(props.location).map(({ key, label, detail }) =>
+    key === 'breedRestrictions' ? `${label}: ${detail}` : label
+  ),
+  ...parseAmenities(props.location.amenities),
+])
 
 function focusHeading() {
   void nextTick(() => heading.value?.focus({ preventScroll: true }))
 }
 
+// Element that had focus before the panel took it; restored on close
+let opener: HTMLElement | null = null
+
 onMounted(() => {
-  window.addEventListener('keydown', onKeydown)
+  opener = document.activeElement as HTMLElement | null
   focusHeading()
 })
-onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
+onBeforeUnmount(() => {
+  if (opener && opener !== document.body && opener.isConnected) opener.focus()
+})
 watch(() => props.location.id, focusHeading)
 </script>
-
-<style scoped>
-.line-clamp-4 {
-  display: -webkit-box;
-  -webkit-line-clamp: 4;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-</style>

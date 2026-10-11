@@ -62,7 +62,7 @@ const googleItem: SearchResultItem = {
   suggestion: { placeId: 'g1', mainText: 'Google Cafe', secondaryText: '' },
 }
 
-function setup() {
+function setup(extra: Partial<Parameters<typeof useMapSearch>[0]> = {}) {
   const map = {
     panTo: vi.fn(),
     setZoom: vi.fn(),
@@ -78,6 +78,7 @@ function setup() {
           getMap: () => map as unknown as google.maps.Map,
           selectedType,
           onLocationsUpdated,
+          ...extra,
         })
         return () => null
       },
@@ -231,6 +232,25 @@ describe('useMapSearch', () => {
       expect(map.panTo).toHaveBeenCalledWith({ lat: location.latitude, lng: location.longitude })
       expect(map.setZoom).toHaveBeenCalledWith(16)
       expect(mocks.selectSuggestion).not.toHaveBeenCalled()
+    })
+
+    it('delegates opening a saved place to requestOpenLocation and still recentres', async () => {
+      const requestOpenLocation = vi.fn()
+      const { search, map } = setup({ requestOpenLocation })
+      const location = createMockLocation({ id: 'a' })
+
+      await search.select({
+        kind: 'saved',
+        key: 'saved:a',
+        label: location.name,
+        description: '',
+        locationType: location.type,
+        location,
+      })
+
+      expect(requestOpenLocation).toHaveBeenCalledWith(location)
+      expect(search.selectedSavedLocation.value).toBeNull()
+      expect(map.panTo).toHaveBeenCalled()
     })
 
     it('opens the stored-place panel for a marker click and replaces the previous one', () => {

@@ -19,6 +19,8 @@ export interface UseMapSearchOptions {
   selectedType: Ref<LocationType | null>
   /** Called whenever the saved-location list was refreshed by the latest request. */
   onLocationsUpdated: () => void
+  /** Opens a saved place chosen from the search results (defaults to showing the panel directly). */
+  requestOpenLocation?: (location: Location) => void
 }
 
 /**
@@ -152,7 +154,8 @@ export function useMapSearch(options: UseMapSearchOptions) {
 
     if (item.kind === 'saved') {
       const { location } = item
-      openLocation(location)
+      const open = options.requestOpenLocation ?? openLocation
+      open(location)
       map.panTo({ lat: location.latitude, lng: location.longitude })
       map.setZoom(16)
       return

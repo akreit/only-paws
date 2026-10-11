@@ -5,7 +5,7 @@ export default defineEventHandler(async (event) => {
   const { rating, comment, locationId } = body
 
   // Validate required fields
-  if (!rating || !locationId || rating < 1 || rating > 5) {
+  if (!validateRating(rating) || !locationId) {
     throw createError({
       statusCode: 400,
       message: 'Invalid input',

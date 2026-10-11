@@ -1,18 +1,5 @@
 import { LocationType } from '~/types'
 
-export const AMENITIES_OPTIONS = [
-  'Water bowls',
-  'Dog treats',
-  'Outdoor seating',
-  'Patio',
-  'Dog menu',
-  'Waste bags',
-  'Fenced area',
-  'Agility equipment',
-  'Swimming area',
-  'Shade',
-]
-
 export const MAX_PHOTOS_PER_LOCATION = 50
 export const MAX_PHOTO_SIZE_MB = 10
 

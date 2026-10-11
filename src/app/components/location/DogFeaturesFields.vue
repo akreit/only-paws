@@ -37,7 +37,7 @@
         Amenities (Select all that apply)
       </label>
       <div class="grid grid-cols-2 gap-2">
-        <div v-for="amenity in AMENITIES_OPTIONS" :key="amenity" class="flex items-center gap-2">
+        <div v-for="amenity in amenityOptions" :key="amenity" class="flex items-center gap-2">
           <input
             :id="`amenity-${amenity}`"
             v-model="amenities"
@@ -55,8 +55,9 @@
 </template>
 
 <script setup lang="ts">
-import { AMENITIES_OPTIONS } from '~/utils/constants'
 import Input from '~/components/ui/Input.vue'
+
+const amenityOptions = AMENITIES_OPTIONS
 
 const leashRequired = defineModel<boolean>('leashRequired', { default: false })
 const offLeashArea = defineModel<boolean>('offLeashArea', { default: false })

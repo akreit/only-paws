@@ -50,6 +50,12 @@ describe('PATCH /api/locations/[id]', () => {
     await expectStatus(400, 'leashRequired must be a boolean or null')
   })
 
+  it('returns 400 for an unknown amenity', async () => {
+    mocks.readBody.mockResolvedValue({ amenities: ['Patio', 'Hot tub'] })
+
+    await expectStatus(400, 'amenities must be an array of known amenities or null')
+  })
+
   it('returns 400 for an empty body', async () => {
     mocks.readBody.mockResolvedValue({})
 

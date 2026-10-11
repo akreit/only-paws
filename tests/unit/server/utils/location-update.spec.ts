@@ -60,8 +60,8 @@ describe('parseLocationUpdate', () => {
     expect(parseLocationUpdate({ breedRestrictions: 'a'.repeat(500) })).toHaveProperty('data')
   })
 
-  it('stores amenities as a trimmed, deduplicated JSON string', () => {
-    expect(parseLocationUpdate({ amenities: ['Patio', ' Patio ', 'Water bowls'] })).toEqual({
+  it('stores amenities as a deduplicated JSON string', () => {
+    expect(parseLocationUpdate({ amenities: ['Patio', 'Patio', 'Water bowls'] })).toEqual({
       data: { amenities: JSON.stringify(['Patio', 'Water bowls']) },
     })
     expect(parseLocationUpdate({ amenities: [] })).toEqual({ data: { amenities: '[]' } })
@@ -69,21 +69,11 @@ describe('parseLocationUpdate', () => {
   })
 
   it('rejects invalid amenities', () => {
-    const notArray = { error: 'amenities must be an array of strings or null' }
-    expect(parseLocationUpdate({ amenities: 'Patio' })).toEqual(notArray)
-
-    const badItem = {
-      error: 'Each amenity must be a non-empty string of at most 50 characters',
-    }
-    expect(parseLocationUpdate({ amenities: [''] })).toEqual(badItem)
-    expect(parseLocationUpdate({ amenities: ['  '] })).toEqual(badItem)
-    expect(parseLocationUpdate({ amenities: [1] })).toEqual(badItem)
-    expect(parseLocationUpdate({ amenities: ['a'.repeat(51)] })).toEqual(badItem)
-
-    const tooMany = Array.from({ length: 31 }, (_, i) => `Amenity ${i}`)
-    expect(parseLocationUpdate({ amenities: tooMany })).toEqual({
-      error: 'At most 30 amenities are allowed',
-    })
+    const invalid = { error: 'amenities must be an array of known amenities or null' }
+    expect(parseLocationUpdate({ amenities: 'Patio' })).toEqual(invalid)
+    expect(parseLocationUpdate({ amenities: [1] })).toEqual(invalid)
+    expect(parseLocationUpdate({ amenities: ['Hot tub'] })).toEqual(invalid)
+    expect(parseLocationUpdate({ amenities: ['Patio', ' Patio '] })).toEqual(invalid)
   })
 
   it('supports partial updates and returns only the provided fields', () => {

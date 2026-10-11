@@ -24,14 +24,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
 import type { Location, LocationType, UpdateLocationInput } from '~/types'
-import { LOCATION_TYPE_LABELS } from '~/utils/constants'
-import { parseAmenities } from '~/utils/helpers'
-import Modal from '~/components/ui/Modal.vue'
-import Select from '~/components/ui/Select.vue'
-import Button from '~/components/ui/Button.vue'
-import DogFeaturesFields from '~/components/location/DogFeaturesFields.vue'
 
 interface Props {
   modelValue: boolean
@@ -41,7 +34,6 @@ interface Props {
 const props = defineProps<Props>()
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
-  updated: [location: Location]
 }>()
 
 const { updateLocation } = useLocations()
@@ -110,8 +102,7 @@ async function handleSubmit() {
 
   saving.value = true
   try {
-    const updated = await updateLocation(props.location.id, changes)
-    emit('updated', updated)
+    await updateLocation(props.location.id, changes)
     close()
   } catch (error) {
     console.error('Failed to update location:', error)

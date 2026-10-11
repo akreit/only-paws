@@ -60,12 +60,7 @@
         </div>
       </div>
 
-      <EditLocationModal
-        v-if="isSignedIn"
-        v-model="editing"
-        :location="location"
-        @updated="refreshLocation"
-      />
+      <EditLocationModal v-if="isSignedIn" v-model="editing" :location="location" />
 
       <!-- Reviews Section -->
       <div class="rounded-lg bg-white p-6 shadow-md">

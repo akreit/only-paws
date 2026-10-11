@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { computed, ref, watch } from 'vue'
 import { flushPromises, mount } from '@vue/test-utils'
+import { LOCATION_TYPE_LABELS } from '~/utils/constants'
+import { parseAmenities } from '~/utils/helpers'
+import Button from '~/components/ui/Button.vue'
+import Select from '~/components/ui/Select.vue'
+import DogFeaturesFields from '~/components/location/DogFeaturesFields.vue'
 import EditLocationModal from '~/components/location/EditLocationModal.vue'
 import type { Location } from '~/types'
 
@@ -23,13 +29,21 @@ const ModalStub = {
 function mountModal(open = true) {
   return mount(EditLocationModal, {
     props: { modelValue: open, location },
-    global: { stubs: { Modal: ModalStub } },
+    global: {
+      stubs: { Modal: ModalStub },
+      components: { Button, Select, DogFeaturesFields },
+    },
   })
 }
 
 describe('EditLocationModal', () => {
   beforeEach(() => {
     updateLocation.mockReset()
+    vi.stubGlobal('ref', ref)
+    vi.stubGlobal('computed', computed)
+    vi.stubGlobal('watch', watch)
+    vi.stubGlobal('LOCATION_TYPE_LABELS', LOCATION_TYPE_LABELS)
+    vi.stubGlobal('parseAmenities', parseAmenities)
     vi.stubGlobal('useLocations', () => ({ updateLocation }))
   })
 
@@ -47,7 +61,7 @@ describe('EditLocationModal', () => {
     expect(mountModal(false).find('form').exists()).toBe(false)
   })
 
-  it('submits only the changed fields and emits updated', async () => {
+  it('submits only the changed fields and closes', async () => {
     const updated = { ...location, type: 'CAFE' }
     updateLocation.mockResolvedValue(updated)
     const wrapper = mountModal()
@@ -65,7 +79,6 @@ describe('EditLocationModal', () => {
       breedRestrictions: null,
       amenities: ['Patio', 'Water bowls'],
     })
-    expect(wrapper.emitted('updated')?.[0]).toEqual([updated])
     expect(wrapper.emitted('update:modelValue')?.[0]).toEqual([false])
   })
 
@@ -88,7 +101,6 @@ describe('EditLocationModal', () => {
     await wrapper.find('form').trigger('submit')
     await flushPromises()
 
-    expect(wrapper.emitted('updated')).toBeUndefined()
     expect(wrapper.emitted('update:modelValue')).toBeUndefined()
   })
 

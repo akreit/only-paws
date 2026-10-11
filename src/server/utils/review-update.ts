@@ -1,5 +1,3 @@
-export const MAX_REVIEW_COMMENT_LENGTH = 2000
-
 export interface ReviewUpdateData {
   rating?: number
   comment?: string | null
@@ -23,7 +21,7 @@ export function parseReviewUpdate(body: unknown): ReviewUpdateResult {
 
   if (input.rating !== undefined) {
     const { rating } = input
-    if (typeof rating !== 'number' || !Number.isInteger(rating) || rating < 1 || rating > 5) {
+    if (!validateRating(rating)) {
       return { error: 'Rating must be an integer between 1 and 5' }
     }
     data.rating = rating

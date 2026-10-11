@@ -237,7 +237,6 @@ import {
   validateUrl,
   validatePhone,
   validateCoordinates,
-  validateRating,
   validateRequiredString,
 } from '~/utils/validation'
 import { useLocations } from '~/composables/useLocations'

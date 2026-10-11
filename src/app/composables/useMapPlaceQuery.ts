@@ -28,8 +28,8 @@ export function useMapPlaceQuery(options: UseMapPlaceQueryOptions) {
   const placeId = computed(() => parsePlaceQuery(route.query))
 
   let run = 0
-  // Location the user just opened locally; avoids a lookup and a map re-focus
-  let local: Location | null = null
+  // Locations the user just opened locally; avoids a lookup and a map re-focus
+  const local = new Map<string, Location>()
 
   /** Requests the panel for a location by pushing it to the URL. */
   function open(location: Location) {
@@ -37,7 +37,7 @@ export function useMapPlaceQuery(options: UseMapPlaceQueryOptions) {
       if (selectedSavedLocation.value?.id !== location.id) options.openLocation(location)
       return
     }
-    local = location
+    local.set(location.id, location)
     void router.push({ query: withPlaceQuery(route.query, location.id) })
   }
 
@@ -61,20 +61,20 @@ export function useMapPlaceQuery(options: UseMapPlaceQueryOptions) {
     const current = ++run
 
     if (!id) {
-      local = null
+      local.clear()
       // Only a stored-place panel is closed; a Google preview stays open
       if (selectedSavedLocation.value) options.closeLocation()
       return
     }
 
     if (selectedSavedLocation.value?.id === id) {
-      local = null
+      local.delete(id)
       return
     }
 
-    const fromLocal = local?.id === id
-    const known = fromLocal ? local : locations.value.find((item) => item.id === id)
-    local = null
+    const fromLocal = local.get(id)
+    local.delete(id)
+    const known = fromLocal ?? locations.value.find((item) => item.id === id)
 
     if (known) {
       options.openLocation(known)

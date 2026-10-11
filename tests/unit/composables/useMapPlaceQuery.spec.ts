@@ -94,6 +94,23 @@ describe('useMapPlaceQuery', () => {
     expect(ctx.fetchLocation).not.toHaveBeenCalled()
   })
 
+  it('treats two quick local opens as local, never as deep links', async () => {
+    const ctx = setup()
+    // Navigations settle later than the clicks
+    ctx.router.push.mockImplementation(() => undefined)
+
+    ctx.api.open(a)
+    ctx.api.open(b)
+    ctx.route.query = { place: 'a' }
+    await nextTick()
+    ctx.route.query = { place: 'b' }
+    await nextTick()
+
+    expect(ctx.focusLocation).not.toHaveBeenCalled()
+    expect(ctx.fetchLocation).not.toHaveBeenCalled()
+    expect(ctx.selectedSavedLocation.value).toEqual(b)
+  })
+
   it('does not push when the place is already in the URL and shown', async () => {
     const ctx = setup({ place: 'a' })
     await nextTick()

@@ -1,5 +1,6 @@
 <template>
   <section
+    ref="root"
     role="dialog"
     aria-modal="false"
     :aria-labelledby="headingId"
@@ -129,6 +130,7 @@ interface Props {
 const props = defineProps<Props>()
 const emit = defineEmits<{ close: [] }>()
 
+const root = ref<HTMLElement>()
 const heading = ref<HTMLElement>()
 const headingId = computed(() => `map-location-panel-title-${props.location.id}`)
 const photo = computed(() => props.location.photos?.[0])
@@ -156,7 +158,8 @@ onMounted(() => {
   focusHeading()
 })
 onBeforeUnmount(() => {
-  if (opener && opener !== document.body && opener.isConnected) opener.focus()
+  // Only when focus is still inside; closing from outside must not steal it back
+  if (opener?.isConnected && root.value?.contains(document.activeElement)) opener.focus()
 })
 watch(() => props.location.id, focusHeading)
 </script>

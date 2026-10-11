@@ -107,6 +107,23 @@ describe('MapLocationPanel', () => {
     opener.remove()
   })
 
+  it('does not steal focus back when focus already left the panel', async () => {
+    const opener = document.createElement('button')
+    const other = document.createElement('button')
+    document.body.append(opener, other)
+    opener.focus()
+
+    const w = factory()
+    await w.vm.$nextTick()
+    await w.vm.$nextTick()
+    other.focus()
+
+    w.unmount()
+    expect(document.activeElement).toBe(other)
+    opener.remove()
+    other.remove()
+  })
+
   it('does not restore focus to a detached opener', () => {
     const opener = document.createElement('button')
     document.body.appendChild(opener)

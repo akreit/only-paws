@@ -42,12 +42,41 @@
     </div>
 
     <!-- Loading Indicator -->
-    <div v-if="loading" class="absolute left-1/2 top-20 z-10 -translate-x-1/2 transform">
+    <div
+      v-if="loading && !locations.length"
+      class="absolute left-1/2 top-20 z-10 -translate-x-1/2 transform"
+    >
       <div class="flex items-center gap-2 rounded-lg bg-white px-4 py-2 shadow-lg">
         <LoadingSpinner size="sm" />
         <span class="text-sm text-gray-700">Loading locations...</span>
       </div>
     </div>
+
+    <!-- Use my location: stacked above Google's zoom (24–105px) and camera (137–177px) controls -->
+    <button
+      type="button"
+      class="absolute bottom-[188px] right-2.5 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white text-gray-700 shadow-lg hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 disabled:cursor-wait"
+      aria-label="Use my location"
+      title="Use my location"
+      :disabled="locating"
+      :aria-busy="locating"
+      @click="locateMe"
+    >
+      <LoadingSpinner v-if="locating" size="sm" />
+      <svg
+        v-else
+        class="h-5 w-5"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        aria-hidden="true"
+      >
+        <circle cx="12" cy="12" r="4" />
+        <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+      </svg>
+    </button>
 
     <!-- Marker Legend (hidden on small screens while the preview card is open) -->
     <div
@@ -130,7 +159,15 @@ import MapPlacePreviewCard from '~/components/location/MapPlacePreviewCard.vue'
 
 const { isSignedIn } = useAuth()
 const { locations, loading, error: locationsError } = useLocations()
-const { loadGoogleMaps, initializeMap, centerOnUserOnce, createMarker, prefetchPlaces } = useMap()
+const {
+  loadGoogleMaps,
+  initializeMap,
+  centerOnUserOnce,
+  locateMe,
+  locating,
+  createMarker,
+  prefetchPlaces,
+} = useMap()
 
 const mapContainer = ref<HTMLElement>()
 const showAddModal = ref(false)
@@ -197,7 +234,7 @@ onMounted(async () => {
   mounted = true
   // Locations, geolocation and the Maps script load in parallel; none blocks the others
   void search.refreshLocations()
-  centerOnUserOnce({ isActive: () => mounted })
+  void centerOnUserOnce({ isActive: () => mounted })
   await initMap()
   // Locations may have arrived before the map existed, when drawing was a no-op
   updateMarkers()

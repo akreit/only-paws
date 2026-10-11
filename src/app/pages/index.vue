@@ -172,9 +172,13 @@ import Button from '~/components/ui/Button.vue'
 const { isSignedIn } = useAuth()
 const { fetchLocations, locations, loading } = useLocations()
 
-// Fetch featured locations on mount
+const { preloadMap } = useMap()
+
+// Fetch featured locations on mount, then warm the map the user will likely open next
 onMounted(() => {
   fetchLocations()
+  if (typeof requestIdleCallback === 'function') requestIdleCallback(preloadMap)
+  else setTimeout(preloadMap, 1500)
 })
 
 // SEO

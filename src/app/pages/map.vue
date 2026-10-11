@@ -1,7 +1,12 @@
 <template>
-  <div class="relative h-[calc(100vh-4rem)] overflow-hidden">
+  <div
+    class="relative h-[calc(100vh-4rem)] overflow-hidden"
+    :style="{ '--map-sheet-inset': `${sheetInset}px` }"
+  >
     <!-- Map Container -->
-    <div ref="mapContainer" class="h-full w-full" />
+    <!-- On mobile the bottom sheet takes its height off the map so Google's controls and
+         attribution stay visible; custom controls in map.controls follow automatically. -->
+    <div ref="mapContainer" class="h-[calc(100%-var(--map-sheet-inset,0px))] w-full" />
 
     <!-- Left column (sm+): search controls with the stored-place panel docked beneath.
          On mobile the children position themselves (the panel becomes a bottom sheet). -->
@@ -53,6 +58,7 @@
       <!-- Stored place: bottom sheet on mobile, docked under the search on sm+ -->
       <MapLocationPanel
         v-if="selectedSavedLocation"
+        ref="locationPanel"
         :location="selectedSavedLocation"
         class="pointer-events-auto absolute inset-x-0 bottom-0 z-20 sm:static sm:min-h-0 sm:w-96 sm:max-w-full"
         @close="dismissAll"
@@ -136,7 +142,9 @@
 <script setup lang="ts">
 import { LocationType, type CreateLocationInput, type Location } from '~/types'
 import { LOCATION_TYPE_LABELS, LOCATION_TYPE_ICONS } from '~/utils/constants'
+import { useElementBounding, useMediaQuery } from '@vueuse/core'
 import { getMarkerIcon, toGoogleIcon } from '~/utils/map-markers'
+import { mapSheetInset } from '~/utils/map-layout'
 import {
   buildLocationInputFromGooglePlace,
   inferLocationTypeFromGoogleTypes,
@@ -157,6 +165,7 @@ const { locations, loading, error: locationsError } = useLocations()
 const { loadGoogleMaps, initializeMap, centerOnUserOnce, createMarker, prefetchPlaces } = useMap()
 
 const mapContainer = ref<HTMLElement>()
+const locationPanel = ref<InstanceType<typeof MapLocationPanel>>()
 const showAddModal = ref(false)
 const selectedType = ref<LocationType | null>(null)
 
@@ -179,6 +188,16 @@ const search = useMapSearch({
   requestOpenLocation: (location) => placeQuery.open(location),
 })
 const { selectedPlace, selectedSavedLocation, placeDetailsLoading } = search
+
+const isMobile = useMediaQuery('(max-width: 639px)')
+const { height: panelHeight } = useElementBounding(() => locationPanel.value?.$el as HTMLElement)
+const sheetInset = computed(() =>
+  mapSheetInset({
+    isMobile: isMobile.value,
+    open: !!selectedSavedLocation.value,
+    height: panelHeight.value,
+  })
+)
 
 const placeQuery = useMapPlaceQuery({
   route,

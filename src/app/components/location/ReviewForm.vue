@@ -84,10 +84,12 @@ async function handleSubmit() {
       return
     }
 
+    if (!props.locationId) return
+
     const input: CreateReviewInput = {
-      locationId: props.locationId!,
+      locationId: props.locationId,
       rating: rating.value,
-      comment: comment.value || undefined,
+      comment: comment.value.trim() || undefined,
     }
     await createReview(input)
 

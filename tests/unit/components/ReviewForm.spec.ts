@@ -68,6 +68,42 @@ describe('ReviewForm', () => {
       expect(wrapper.find('textarea').element.value).toBe('')
     })
 
+    it('trims the comment and omits a blank one', async () => {
+      createReview.mockResolvedValue({})
+      const wrapper = mountForm({ locationId: 'loc-1' })
+
+      await wrapper.find('[data-testid="rating"]').trigger('click')
+      await wrapper.find('textarea').setValue('  Lovely  ')
+      await wrapper.find('form').trigger('submit')
+      await flushPromises()
+      expect(createReview).toHaveBeenLastCalledWith({
+        locationId: 'loc-1',
+        rating: 2,
+        comment: 'Lovely',
+      })
+
+      await wrapper.find('[data-testid="rating"]').trigger('click')
+      await wrapper.find('textarea').setValue('   ')
+      await wrapper.find('form').trigger('submit')
+      await flushPromises()
+      expect(createReview).toHaveBeenLastCalledWith({
+        locationId: 'loc-1',
+        rating: 2,
+        comment: undefined,
+      })
+    })
+
+    it('does not create without a location', async () => {
+      const wrapper = mountForm({})
+
+      await wrapper.find('[data-testid="rating"]').trigger('click')
+      await wrapper.find('form').trigger('submit')
+      await flushPromises()
+
+      expect(createReview).not.toHaveBeenCalled()
+      expect(wrapper.emitted('submitted')).toBeUndefined()
+    })
+
     it('does not emit when creating fails', async () => {
       createReview.mockRejectedValue(new Error('nope'))
       vi.spyOn(console, 'error').mockImplementation(() => {})

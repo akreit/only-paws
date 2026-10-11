@@ -128,65 +128,12 @@
     <div :class="showBasicInfoSection ? 'border-t pt-6' : ''">
       <h3 class="mb-4 text-lg font-semibold text-gray-900">🐕 Dog-Friendly Features</h3>
 
-      <div class="space-y-4">
-        <!-- Leash Required -->
-        <div class="flex items-center gap-2">
-          <input
-            id="leashRequired"
-            v-model="form.leashRequired"
-            type="checkbox"
-            class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-          />
-          <label for="leashRequired" class="text-sm font-medium text-gray-700">
-            Leash Required
-          </label>
-        </div>
-
-        <!-- Off-Leash Area -->
-        <div class="flex items-center gap-2">
-          <input
-            id="offLeashArea"
-            v-model="form.offLeashArea"
-            type="checkbox"
-            class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-          />
-          <label for="offLeashArea" class="text-sm font-medium text-gray-700">
-            Has Off-Leash Area
-          </label>
-        </div>
-
-        <!-- Breed Restrictions -->
-        <Input
-          v-model="form.breedRestrictions"
-          label="Breed Restrictions (if any)"
-          placeholder="e.g., No aggressive breeds"
-        />
-
-        <!-- Amenities -->
-        <div>
-          <label class="mb-2 block text-sm font-medium text-gray-700">
-            Amenities (Select all that apply)
-          </label>
-          <div class="grid grid-cols-2 gap-2">
-            <div
-              v-for="amenity in AMENITIES_OPTIONS"
-              :key="amenity"
-              class="flex items-center gap-2"
-            >
-              <input
-                :id="`amenity-${amenity}`"
-                v-model="form.amenities"
-                :value="amenity"
-                type="checkbox"
-                class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-              />
-              <label :for="`amenity-${amenity}`" class="text-sm text-gray-700">
-                {{ amenity }}
-              </label>
-            </div>
-          </div>
-        </div>
-      </div>
+      <DogFeaturesFields
+        v-model:leash-required="form.leashRequired"
+        v-model:off-leash-area="form.offLeashArea"
+        v-model:breed-restrictions="form.breedRestrictions"
+        v-model:amenities="form.amenities"
+      />
     </div>
 
     <!-- Quick Review -->
@@ -285,7 +232,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import type { CreateLocationInput, Location, LocationType } from '~/types'
-import { LOCATION_TYPE_LABELS, AMENITIES_OPTIONS, MAX_PHOTO_SIZE_MB } from '~/utils/constants'
+import { LOCATION_TYPE_LABELS, MAX_PHOTO_SIZE_MB } from '~/utils/constants'
 import {
   validateUrl,
   validatePhone,
@@ -302,6 +249,7 @@ import Input from '~/components/ui/Input.vue'
 import Button from '~/components/ui/Button.vue'
 import Select from '~/components/ui/Select.vue'
 import Rating from '~/components/ui/Rating.vue'
+import DogFeaturesFields from '~/components/location/DogFeaturesFields.vue'
 
 interface Props {
   initialLocation?: Partial<CreateLocationInput>

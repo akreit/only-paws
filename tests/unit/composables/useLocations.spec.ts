@@ -88,6 +88,51 @@ describe('useLocations.fetchLocations', () => {
     expect(markChanged).toHaveBeenCalledTimes(2)
   })
 
+  it('updateLocation PATCHes, updates the store and marks locations changed', async () => {
+    const store = useLocationsStore()
+    store.setLocations([{ id: '1', type: 'PARK' } as never])
+    store.setSelectedLocation({ id: '1', type: 'PARK' } as never)
+    fetchMock.mockResolvedValueOnce({ id: '1', type: 'CAFE' })
+    const { updateLocation, locations, selectedLocation, loading } = useLocations()
+
+    await expect(updateLocation('1', { type: 'CAFE' as never })).resolves.toEqual({
+      id: '1',
+      type: 'CAFE',
+    })
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/locations/1', {
+      method: 'PATCH',
+      body: { type: 'CAFE' },
+    })
+    expect(locations.value[0]).toMatchObject({ type: 'CAFE' })
+    expect(selectedLocation.value).toMatchObject({ type: 'CAFE' })
+    expect(markChanged).toHaveBeenCalledTimes(1)
+    expect(loading.value).toBe(false)
+    expect(useNotificationsStore().notifications[0]).toMatchObject({ type: 'success' })
+  })
+
+  it('updateLocation leaves an unrelated selected location alone', async () => {
+    const store = useLocationsStore()
+    store.setSelectedLocation({ id: '2', type: 'PARK' } as never)
+    fetchMock.mockResolvedValueOnce({ id: '1', type: 'CAFE' })
+
+    await useLocations().updateLocation('1', { type: 'CAFE' as never })
+
+    expect(store.selectedLocation).toMatchObject({ id: '2', type: 'PARK' })
+  })
+
+  it('updateLocation only toasts on failure (page error/loading untouched) and skips markLocationsChanged', async () => {
+    fetchMock.mockRejectedValue(new Error('x'))
+    const { updateLocation, error, loading } = useLocations()
+
+    await expect(updateLocation('1', { leashRequired: true })).rejects.toBeDefined()
+
+    expect(error.value).toBeNull()
+    expect(loading.value).toBe(false)
+    expect(markChanged).not.toHaveBeenCalled()
+    expect(useNotificationsStore().notifications[0]).toMatchObject({ type: 'error' })
+  })
+
   it('sets error and notifies when single fetch, create or delete fails', async () => {
     fetchMock.mockRejectedValue(new Error('x'))
     const { fetchLocation, createLocation, deleteLocation, error } = useLocations()

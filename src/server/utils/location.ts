@@ -14,6 +14,29 @@ export const LOCATION_LIST_INCLUDE = {
   },
 } as const
 
+/** Include for a single place's detail view (GET and PATCH /api/locations/[id]). */
+export const LOCATION_DETAIL_INCLUDE = {
+  photos: {
+    include: {
+      uploader: true,
+    },
+    orderBy: { createdAt: 'desc' },
+  },
+  reviews: {
+    include: {
+      author: true,
+    },
+    orderBy: { createdAt: 'desc' },
+  },
+  _count: {
+    select: {
+      reviews: true,
+      photos: true,
+      favorites: true,
+    },
+  },
+} as const
+
 export function withAverageRating<T extends { reviews?: Array<{ rating: number }> | null }>(
   location: T
 ) {

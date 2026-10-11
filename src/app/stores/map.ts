@@ -1,11 +1,12 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { markRaw, ref, shallowRef } from 'vue'
 
 export const useMapStore = defineStore('map', () => {
   const center = ref<{ lat: number; lng: number } | null>(null)
   const zoom = ref(13)
   const bounds = ref<google.maps.LatLngBounds | null>(null)
-  const mapInstance = ref<google.maps.Map | null>(null)
+  // Raw: Vue must not proxy the Google Map object
+  const mapInstance = shallowRef<google.maps.Map | null>(null)
 
   function setCenter(newCenter: { lat: number; lng: number }) {
     center.value = newCenter
@@ -20,7 +21,7 @@ export const useMapStore = defineStore('map', () => {
   }
 
   function setMapInstance(instance: google.maps.Map | null) {
-    mapInstance.value = instance
+    mapInstance.value = instance ? markRaw(instance) : null
   }
 
   function panTo(lat: number, lng: number) {

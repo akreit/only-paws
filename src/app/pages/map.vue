@@ -52,31 +52,10 @@
       </div>
     </div>
 
-    <!-- Use my location: stacked above Google's zoom (24–105px) and camera (137–177px) controls -->
-    <button
-      type="button"
-      class="absolute bottom-[188px] right-2.5 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white text-gray-700 shadow-lg hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 disabled:cursor-wait"
-      aria-label="Use my location"
-      title="Use my location"
-      :disabled="locating"
-      :aria-busy="locating"
-      @click="locateMe"
-    >
-      <LoadingSpinner v-if="locating" size="sm" />
-      <svg
-        v-else
-        class="h-5 w-5"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        aria-hidden="true"
-      >
-        <circle cx="12" cy="12" r="4" />
-        <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
-      </svg>
-    </button>
+    <!-- Use my location: moved into Google's RIGHT_BOTTOM controls once the map exists -->
+    <div v-show="locateControlReady" ref="locateControl" class="m-2.5">
+      <MapLocateButton :locating="locating" @locate="locateMe" />
+    </div>
 
     <!-- Marker Legend (hidden on small screens while the preview card is open) -->
     <div
@@ -151,7 +130,9 @@ import {
   inferLocationTypeFromGoogleTypes,
 } from '~/utils/google-place'
 import MapSearchBox from '~/components/map/MapSearchBox.vue'
+import MapLocateButton from '~/components/map/MapLocateButton.vue'
 import { useMapSearch } from '~/composables/useMapSearch'
+import { useUserLocation } from '~/composables/useUserLocation'
 import LoadingSpinner from '~/components/ui/LoadingSpinner.vue'
 import Modal from '~/components/ui/Modal.vue'
 import AddLocationForm from '~/components/location/AddLocationForm.vue'
@@ -159,17 +140,13 @@ import MapPlacePreviewCard from '~/components/location/MapPlacePreviewCard.vue'
 
 const { isSignedIn } = useAuth()
 const { locations, loading, error: locationsError } = useLocations()
-const {
-  loadGoogleMaps,
-  initializeMap,
-  centerOnUserOnce,
-  locateMe,
-  locating,
-  createMarker,
-  prefetchPlaces,
-} = useMap()
+const { loadGoogleMaps, initializeMap, createMarker, prefetchPlaces } = useMap()
+const { centerOnUserOnce, resolveInitialCenter, trackInitialMap, locateMe, locating } =
+  useUserLocation()
 
 const mapContainer = ref<HTMLElement>()
+const locateControl = ref<HTMLElement>()
+const locateControlReady = ref(false)
 const showAddModal = ref(false)
 const selectedType = ref<LocationType | null>(null)
 
@@ -243,17 +220,31 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   mounted = false
   mapClickListener?.remove()
+  // Take the control out of Google's array; Vue then removes the (moved) element itself
+  const controls = mapInstance?.controls[google.maps.ControlPosition.RIGHT_BOTTOM]
+  const index = controls?.getArray().indexOf(locateControl.value as HTMLElement) ?? -1
+  if (index >= 0) controls?.removeAt(index)
 })
 
 async function initMap() {
   if (!mapContainer.value) return
 
   try {
-    mapInstance = await initializeMap(mapContainer.value)
+    const initialCenter = await resolveInitialCenter()
+    mapInstance = await initializeMap(mapContainer.value, { initialCenter })
+    trackInitialMap(mapInstance)
+    placeLocateControl(mapInstance)
     bindPlaceClickListener()
   } catch (error) {
     console.error('Failed to initialize map:', error)
   }
+}
+
+// Google stacks custom controls with its own, so the button never overlaps zoom/camera controls
+function placeLocateControl(map: google.maps.Map) {
+  if (!locateControl.value) return
+  map.controls[google.maps.ControlPosition.RIGHT_BOTTOM].push(locateControl.value)
+  locateControlReady.value = true
 }
 
 function bindPlaceClickListener() {

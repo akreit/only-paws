@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const KEY = 'only-paws:geolocation'
+const KEY = 'only-paws:geolocation:v1'
 const DAY = 24 * 60 * 60 * 1000
 
 describe('geolocation-preference', () => {
@@ -54,11 +54,34 @@ describe('geolocation-preference', () => {
     const pref = await freshPreference()
     pref.saveLastPosition({ lat: 1, lng: 2 })
 
-    vi.setSystemTime(Date.now() + 6 * DAY)
+    vi.setSystemTime(Date.now() + 0.9 * DAY)
     expect(pref.getLastPosition()).not.toBeNull()
-    vi.setSystemTime(Date.now() + 2 * DAY)
+    vi.setSystemTime(Date.now() + 0.2 * DAY)
     expect(pref.getLastPosition()).toBeNull()
     expect(pref.getLastPosition(10 * DAY)).not.toBeNull()
+  })
+
+  it('uses a versioned storage key', () => {
+    expect(KEY).toBe('only-paws:geolocation:v1')
+  })
+
+  it('rounds stored coordinates to 3 decimals', async () => {
+    const pref = await freshPreference()
+    pref.saveLastPosition({ lat: 12.97164, lng: -77.59466 })
+
+    expect(pref.getLastPosition()).toEqual({ lat: 12.972, lng: -77.595, at: Date.now() })
+  })
+
+  it('clearLastPosition drops the position but keeps the ask flag', async () => {
+    const pref = await freshPreference()
+    pref.markAskedForLocation()
+    pref.saveLastPosition({ lat: 1, lng: 2 })
+
+    pref.clearLastPosition()
+
+    expect(pref.getLastPosition()).toBeNull()
+    expect(pref.hasAskedForLocation()).toBe(true)
+    expect(JSON.parse(localStorage.getItem(KEY)!)).toEqual({ asked: true, lastPosition: null })
   })
 
   it('ignores corrupt or malformed stored data', async () => {

@@ -168,6 +168,7 @@
 <script setup lang="ts">
 import LoadingSpinner from '~/components/ui/LoadingSpinner.vue'
 import Button from '~/components/ui/Button.vue'
+import { shouldPreloadOnIdle } from '~/utils/network'
 
 const { isSignedIn } = useAuth()
 const { fetchLocations, locations, loading } = useLocations()
@@ -177,7 +178,8 @@ const { preloadMap } = useMap()
 // Fetch featured locations on mount, then warm the map the user will likely open next
 onMounted(() => {
   fetchLocations()
-  if (typeof requestIdleCallback === 'function') requestIdleCallback(preloadMap)
+  if (!shouldPreloadOnIdle()) return
+  if (typeof requestIdleCallback === 'function') requestIdleCallback(preloadMap, { timeout: 3000 })
   else setTimeout(preloadMap, 1500)
 })
 

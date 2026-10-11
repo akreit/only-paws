@@ -1,7 +1,7 @@
 // Remembers whether we already asked for location and the last known fix, so the site asks once
 // and the map can start centered on the user. Stored in localStorage under a single key.
-const STORAGE_KEY = 'only-paws:geolocation'
-export const LAST_POSITION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000
+const STORAGE_KEY = 'only-paws:geolocation:v1'
+export const LAST_POSITION_MAX_AGE_MS = 24 * 60 * 60 * 1000
 
 export type PermissionStateLike = 'granted' | 'denied' | 'prompt' | 'unknown'
 
@@ -62,8 +62,19 @@ export function markAskedForLocation(): void {
   write({ ...read(), asked: true })
 }
 
+// 3 decimals is ~110 m: plenty for centering a map, without keeping a precise location at rest
+const round = (degrees: number) => Math.round(degrees * 1e3) / 1e3
+
 export function saveLastPosition(position: { lat: number; lng: number }): void {
-  write({ ...read(), lastPosition: { lat: position.lat, lng: position.lng, at: Date.now() } })
+  write({
+    ...read(),
+    lastPosition: { lat: round(position.lat), lng: round(position.lng), at: Date.now() },
+  })
+}
+
+/** Forget the stored position (keeps the ask flag), e.g. on sign-out or a denied permission. */
+export function clearLastPosition(): void {
+  write({ ...read(), lastPosition: null })
 }
 
 /** The last known position if it is recent enough, otherwise null. */

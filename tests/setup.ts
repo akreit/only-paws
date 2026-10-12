@@ -2,7 +2,12 @@ import { beforeAll, vi } from 'vitest'
 import { AMENITIES_OPTIONS } from '#shared/utils/amenities'
 import { MAX_REVIEW_COMMENT_LENGTH, validateRating } from '#shared/utils/validation'
 import { instagramProfileUrl, parseInstagramHandle } from '#shared/utils/instagram'
-import { getAvatarUrl, squareCropUrl, validateProfilePhotoFile } from '#shared/utils/profile-photo'
+import {
+  getAvatarUrl,
+  resolveProfileUploadPreset,
+  squareCropUrl,
+  validateProfilePhotoFile,
+} from '#shared/utils/profile-photo'
 
 // Nuxt auto-imports shared/utils in the app and Nitro; expose them the same way here
 vi.stubGlobal('AMENITIES_OPTIONS', AMENITIES_OPTIONS)
@@ -12,6 +17,7 @@ vi.stubGlobal('parseInstagramHandle', parseInstagramHandle)
 vi.stubGlobal('instagramProfileUrl', instagramProfileUrl)
 vi.stubGlobal('getAvatarUrl', getAvatarUrl)
 vi.stubGlobal('squareCropUrl', squareCropUrl)
+vi.stubGlobal('resolveProfileUploadPreset', resolveProfileUploadPreset)
 vi.stubGlobal('validateProfilePhotoFile', validateProfilePhotoFile)
 
 // Mock environment variables

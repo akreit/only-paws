@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   PROFILE_PHOTO_MAX_BYTES,
   getAvatarUrl,
+  resolveProfileUploadPreset,
   squareCropUrl,
   validateProfilePhotoFile,
 } from '#shared/utils/profile-photo'
@@ -49,5 +50,25 @@ describe('getAvatarUrl', () => {
     )
     expect(getAvatarUrl({})).toBeNull()
     expect(getAvatarUrl(undefined)).toBeNull()
+  })
+})
+
+describe('resolveProfileUploadPreset', () => {
+  it('uses the dedicated profile preset when set', () => {
+    expect(
+      resolveProfileUploadPreset({ profileUploadPreset: 'profiles', uploadPreset: 'places' })
+    ).toBe('profiles')
+  })
+  it('falls back to the shared preset when unset or empty', () => {
+    expect(resolveProfileUploadPreset({ uploadPreset: 'places' })).toBe('places')
+    expect(resolveProfileUploadPreset({ profileUploadPreset: '', uploadPreset: 'places' })).toBe(
+      'places'
+    )
+    expect(resolveProfileUploadPreset({ profileUploadPreset: '  ', uploadPreset: 'places' })).toBe(
+      'places'
+    )
+  })
+  it('returns an empty string when nothing is configured', () => {
+    expect(resolveProfileUploadPreset({})).toBe('')
   })
 })

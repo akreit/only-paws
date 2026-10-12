@@ -34,3 +34,17 @@ export function getAvatarUrl(
   if (user?.profilePhotoUrl) return squareCropUrl(user.profilePhotoUrl, size)
   return user?.avatarUrl || null
 }
+
+/**
+ * Upload preset for profile photos: the dedicated profile preset
+ * (CLOUDINARY_PROFILE_UPLOAD_PRESET) when set, otherwise the shared place-photo preset.
+ */
+export function resolveProfileUploadPreset(config: {
+  profileUploadPreset?: unknown
+  uploadPreset?: unknown
+}): string {
+  const dedicated =
+    typeof config.profileUploadPreset === 'string' ? config.profileUploadPreset.trim() : ''
+  if (dedicated) return dedicated
+  return typeof config.uploadPreset === 'string' ? config.uploadPreset : ''
+}

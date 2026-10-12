@@ -4,7 +4,7 @@
 
     <div class="space-y-4">
       <!-- Leash Required -->
-      <div v-if="location.leashRequired !== null" class="flex items-start gap-3">
+      <div v-if="featureByKey.leash" class="flex items-start gap-3">
         <svg
           :class="[location.leashRequired ? 'text-blue-600' : 'text-gray-400']"
           class="mt-0.5 h-5 w-5 flex-shrink-0"
@@ -18,17 +18,13 @@
           />
         </svg>
         <div>
-          <p class="font-medium text-gray-900">
-            Leash {{ location.leashRequired ? 'Required' : 'Optional' }}
-          </p>
-          <p class="text-sm text-gray-600">
-            {{ location.leashRequired ? 'Dogs must be kept on leash' : 'Off-leash allowed' }}
-          </p>
+          <p class="font-medium text-gray-900">{{ featureByKey.leash.label }}</p>
+          <p class="text-sm text-gray-600">{{ featureByKey.leash.detail }}</p>
         </div>
       </div>
 
       <!-- Off-Leash Area -->
-      <div v-if="location.offLeashArea" class="flex items-start gap-3">
+      <div v-if="featureByKey.offLeashArea" class="flex items-start gap-3">
         <svg
           class="mt-0.5 h-5 w-5 flex-shrink-0 text-green-600"
           fill="currentColor"
@@ -41,13 +37,13 @@
           />
         </svg>
         <div>
-          <p class="font-medium text-gray-900">Off-Leash Area Available</p>
-          <p class="text-sm text-gray-600">Designated area for dogs to run free</p>
+          <p class="font-medium text-gray-900">{{ featureByKey.offLeashArea.label }}</p>
+          <p class="text-sm text-gray-600">{{ featureByKey.offLeashArea.detail }}</p>
         </div>
       </div>
 
       <!-- Breed Restrictions -->
-      <div v-if="location.breedRestrictions" class="flex items-start gap-3">
+      <div v-if="featureByKey.breedRestrictions" class="flex items-start gap-3">
         <svg
           class="mt-0.5 h-5 w-5 flex-shrink-0 text-yellow-600"
           fill="currentColor"
@@ -60,8 +56,8 @@
           />
         </svg>
         <div>
-          <p class="font-medium text-gray-900">Breed Restrictions</p>
-          <p class="text-sm text-gray-600">{{ location.breedRestrictions }}</p>
+          <p class="font-medium text-gray-900">{{ featureByKey.breedRestrictions.label }}</p>
+          <p class="text-sm text-gray-600">{{ featureByKey.breedRestrictions.detail }}</p>
         </div>
       </div>
 
@@ -115,6 +111,7 @@
 import { computed } from 'vue'
 import type { Location } from '~/types'
 import { parseAmenities } from '~/utils/helpers'
+import { locationFeatureLabels, type LocationFeature } from '~/utils/location-features'
 
 interface Props {
   location: Location
@@ -124,12 +121,12 @@ const props = defineProps<Props>()
 
 const amenities = computed(() => parseAmenities(props.location.amenities))
 
-const hasFeatures = computed(() => {
-  return (
-    props.location.leashRequired !== null ||
-    props.location.offLeashArea ||
-    props.location.breedRestrictions ||
-    amenities.value.length > 0
-  )
+const features = computed(() => locationFeatureLabels(props.location))
+const featureByKey = computed(() => {
+  const map: Partial<Record<LocationFeature['key'], LocationFeature>> = {}
+  for (const feature of features.value) map[feature.key] = feature
+  return map
 })
+
+const hasFeatures = computed(() => features.value.length > 0 || amenities.value.length > 0)
 </script>

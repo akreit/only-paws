@@ -62,7 +62,7 @@ const googleItem: SearchResultItem = {
   suggestion: { placeId: 'g1', mainText: 'Google Cafe', secondaryText: '' },
 }
 
-function setup() {
+function setup(extra: Partial<Parameters<typeof useMapSearch>[0]> = {}) {
   const map = {
     panTo: vi.fn(),
     setZoom: vi.fn(),
@@ -78,6 +78,7 @@ function setup() {
           getMap: () => map as unknown as google.maps.Map,
           selectedType,
           onLocationsUpdated,
+          ...extra,
         })
         return () => null
       },
@@ -227,10 +228,60 @@ describe('useMapSearch', () => {
       })
 
       expect(search.selectedSavedLocation.value).toEqual(location)
-      expect(search.selectedPlace.value).toMatchObject({ placeId: 'gp', name: location.name })
+      expect(search.selectedPlace.value).toBeNull()
       expect(map.panTo).toHaveBeenCalledWith({ lat: location.latitude, lng: location.longitude })
       expect(map.setZoom).toHaveBeenCalledWith(16)
       expect(mocks.selectSuggestion).not.toHaveBeenCalled()
+    })
+
+    it('delegates opening a saved place to requestOpenLocation and still recentres', async () => {
+      const requestOpenLocation = vi.fn()
+      const { search, map } = setup({ requestOpenLocation })
+      const location = createMockLocation({ id: 'a' })
+
+      await search.select({
+        kind: 'saved',
+        key: 'saved:a',
+        label: location.name,
+        description: '',
+        locationType: location.type,
+        location,
+      })
+
+      expect(requestOpenLocation).toHaveBeenCalledWith(location)
+      expect(search.selectedSavedLocation.value).toBeNull()
+      expect(map.panTo).toHaveBeenCalled()
+    })
+
+    it('opens the stored-place panel for a marker click and replaces the previous one', () => {
+      const { search } = setup()
+      const a = createMockLocation({ id: 'a' })
+      const b = createMockLocation({ id: 'b' })
+
+      search.openLocation(a)
+      expect(search.selectedSavedLocation.value).toEqual(a)
+      search.openLocation(b)
+      expect(search.selectedSavedLocation.value).toEqual(b)
+    })
+
+    it('closes the stored-place panel on dismiss (map click)', () => {
+      const { search } = setup()
+      search.openLocation(createMockLocation())
+
+      search.dismiss()
+
+      expect(search.selectedSavedLocation.value).toBeNull()
+    })
+
+    it('swaps a Google preview for the stored-place panel', async () => {
+      mocks.selectSuggestion.mockResolvedValue({ details: googleDetails, viewport: null })
+      const { search } = setup()
+      await search.select(googleItem)
+
+      search.openLocation(createMockLocation({ id: 'a' }))
+
+      expect(search.selectedPlace.value).toBeNull()
+      expect(search.selectedSavedLocation.value).toMatchObject({ id: 'a' })
     })
 
     it('opens a Google result, fits the viewport and drops a pin', async () => {
@@ -499,7 +550,7 @@ describe('useMapSearch selectPlaceId', () => {
     await click
 
     expect(search.selectedSavedLocation.value).toEqual(location)
-    expect(search.selectedPlace.value).toMatchObject({ name: location.name })
+    expect(search.selectedPlace.value).toBeNull()
     expect(mocks.notifyError).not.toHaveBeenCalled()
   })
 

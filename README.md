@@ -173,18 +173,40 @@ only-paws/
 
 ## Deployment
 
-### Vercel (Recommended)
+### Vercel
 
-1. Push your code to GitHub
-2. Import project in Vercel
-3. Add environment variables
-4. Deploy
+Deployments only come from the CI workflow (`.github/workflows/ci.yml`), never from the Vercel Git integration:
 
-### Database (Render)
+- **Git deployments are off:** `vercel.json` sets `git.deploymentEnabled: false`, so pushes and PRs don't build on Vercel. Feature branches only run CI (lint, typecheck, unit tests, build). The repo stays connected to the Vercel project.
+- **`main` → production:** the `deploy` job runs `vercel --prod` after `build` passes on a push to `main`. Concurrency group `deploy-production`, never cancelled midway.
+- **`develop` → staging:** the `deploy-staging` job makes a Vercel **preview** deployment (never `--prod`) on a push to `develop` and aliases it to `only-paws-staging.vercel.app`. The alias isn't claimed yet; the first `develop` deploy claims it.
+- **What each job needs:** both jobs need the repository **variables** `VERCEL_ORG_ID` (team) and `VERCEL_PROJECT_ID` (project), plus the **secret** `VERCEL_TOKEN`. `deploy-staging` also needs the variables `PRODUCTION_DATABASE_FINGERPRINT` and `STAGING_DATABASE_FINGERPRINT` (see the setup below). The action is pinned to a commit SHA and the Vercel CLI to an exact version.
 
-1. Create PostgreSQL database on Render
-2. Update `DATABASE_URL` in Vercel
-3. Migrations are applied automatically by `npm run build` on **production** Vercel builds only (`VERCEL_ENV=production`, via `scripts/migrate-deploy.mjs`, using `DATABASE_URL_UNPOOLED` if set). Preview builds do not migrate, since they share the production database.
+**Staging caveats (it's a Vercel preview deployment):**
+
+- **Database:** previews go through the Neon integration's preview branching. Each preview deployment gets a Neon branch named after its Git branch (`preview/develop` for staging, branched from production's default branch with a copy of production data at creation time). A Neon branch-limit hit fails the deploy with "Resource provisioning failed".
+- **Unverified: does the build see the branch URLs?** The project-level `DATABASE_URL*` store variables target both Preview and Production, i.e. they are the production database. If Neon only injects the branch URLs after the build, the staging build sees production's URLs; the guard below then refuses and every `develop` deploy fails (safely, without migrating). Check the first `develop` deploy: its log must show `[migrate-deploy] Running prisma migrate deploy (staging)...`.
+- **Migrations run on staging, behind an allowlist:** `deploy-staging` passes `--build-env MIGRATE_STAGING=1` plus both fingerprints, so `scripts/migrate-deploy.mjs` runs `prisma migrate deploy` in the staging build against `DATABASE_URL_UNPOOLED` (or `DATABASE_URL`).
+  - **Fingerprint:** a database fingerprint is 16 hex chars of SHA-256 over the normalised host (percent-decoded, lower-cased, trailing dot and IPv6 brackets removed, Neon `-pooler` stripped, port ignored) plus the Neon endpoint id (from `options=endpoint=…`, else the `*.neon.tech` host). It's not secret.
+  - **Rule:** **every** URL (pooled and unpooled) must match `STAGING_DATABASE_FINGERPRINT`, and none may match `PRODUCTION_DATABASE_FINGERPRINT`. Otherwise the staging build fails and logs the fingerprints it saw.
+  - **Branch recreated:** if `preview/develop` is recreated, its endpoint changes and staging fails closed until the variable is updated.
+  - Other previews never migrate.
+- **Auth:** Preview and Production share the same Clerk keys, which come from a Clerk **development** instance (`pk_test_…`), so `*.vercel.app` hosts such as staging work. If production moves to a live instance (`pk_live_…`), give Preview its own development keys or add the staging domain in Clerk.
+- **Access:** Vercel Authentication protects previews (and production deployment URLs), so staging needs a Vercel login or a bypass.
+
+**One-time staging setup (in this order):**
+
+1. Push to `main` (any production deploy). In the `Deploy to Vercel` job log, copy `[migrate-deploy] Production database fingerprint: <16 hex>` into the repository variable `PRODUCTION_DATABASE_FINGERPRINT`.
+2. Set the repository variable `STAGING_DATABASE_FINGERPRINT` to `pending`.
+3. Create `develop` from `main` and push it. The staging build refuses to migrate (failing the deploy) and logs `seen fingerprint(s): <16 hex>`. Check that it differs from the production fingerprint. If it equals it, the build sees the production database (see "Unverified" above); stop there.
+4. Set `STAGING_DATABASE_FINGERPRINT` to that value and re-run the `develop` workflow. The log should now show `Running prisma migrate deploy (staging)`.
+
+`deploy-staging` stops before deploying if either variable is missing.
+
+### Database (Neon)
+
+- **Integration:** the database is Neon, connected through the Vercel Neon integration, which sets `DATABASE_URL`/`DATABASE_URL_UNPOOLED` (and `PG*`/`POSTGRES_*`) for Preview and Production.
+- **Migrations:** `npm run build` applies them on **production** Vercel builds (`VERCEL_ENV=production`, via `scripts/migrate-deploy.mjs`, using `DATABASE_URL_UNPOOLED` if set), and on the guarded `develop` staging build (see above). Other previews never migrate.
 
 ### Database migrations
 

@@ -102,4 +102,57 @@ describe('usePeople', () => {
     await expect(people.updatePeopleSettings({})).rejects.toBeDefined()
     expect(notifications.error).toHaveBeenLastCalledWith('Failed to save Meet people settings')
   })
+
+  it('flags a 403 so the page can point to the opt-in', async () => {
+    fetchMock.mockRejectedValue({ statusCode: 403, data: { message: 'Turn on Meet people' } })
+    const people = usePeople()
+
+    expect(await people.searchPeople()).toBeNull()
+    expect(people.needsOptIn.value).toBe(true)
+    expect(people.error.value).toBeNull()
+
+    fetchMock.mockResolvedValue({ people: [] })
+    await people.searchPeople()
+    expect(people.needsOptIn.value).toBe(false)
+  })
+
+  it('formats the search retry time in local time on 429', async () => {
+    const retryAt = '2026-10-12T15:30:00.000Z'
+    fetchMock.mockRejectedValue({ statusCode: 429, data: { message: 'x', data: { retryAt } } })
+    const people = usePeople()
+
+    await people.searchPeople()
+
+    expect(people.error.value).toContain(new Date(retryAt).toLocaleString())
+  })
+
+  it('falls back to "later" when 429 has no valid retry time', async () => {
+    const people = usePeople()
+    fetchMock.mockRejectedValueOnce({ statusCode: 429 })
+    await people.searchPeople()
+    expect(people.error.value).toContain('later')
+
+    fetchMock.mockRejectedValueOnce({ statusCode: 429, data: { data: { retryAt: 'nope' } } })
+    await people.searchPeople()
+    expect(people.error.value).toContain('later')
+  })
+
+  it('exposes the cooldown message when a location change is rate limited', async () => {
+    const retryAt = '2026-10-12T15:30:00.000Z'
+    fetchMock.mockRejectedValue({
+      statusCode: 429,
+      data: { message: 'raw', data: { retryAt } },
+    })
+    const people = usePeople()
+
+    await expect(people.updatePeopleSettings({ latitude: 1, longitude: 2 })).rejects.toBeDefined()
+
+    const expected = `You can change your location again after ${new Date(retryAt).toLocaleString()}.`
+    expect(people.cooldownMessage.value).toBe(expected)
+    expect(notifications.error).toHaveBeenCalledWith(expected)
+
+    fetchMock.mockResolvedValue({})
+    await people.updatePeopleSettings({})
+    expect(people.cooldownMessage.value).toBe('')
+  })
 })

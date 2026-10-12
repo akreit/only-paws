@@ -7,7 +7,19 @@ import type {
 
 interface FetchError {
   statusCode?: number
-  data?: { message?: string }
+  data?: { message?: string; data?: { retryAt?: string } }
+}
+
+/** Formats the server's `retryAt` in the user's local time; empty when absent or invalid. */
+function localRetryTime(error: unknown): string {
+  const retryAt = ((error ?? {}) as FetchError).data?.data?.retryAt
+  const date = retryAt ? new Date(retryAt) : null
+  return date && !Number.isNaN(date.getTime()) ? date.toLocaleString() : ''
+}
+
+function rateLimitMessage(error: unknown, subject: string): string {
+  const time = localRetryTime(error)
+  return time ? `${subject} after ${time}.` : `${subject} later.`
 }
 
 /** The search API answers 400 with this wording when the searcher has no stored location. */
@@ -34,17 +46,25 @@ export function usePeople() {
   const saving = ref(false)
   const error = ref<string | null>(null)
   const needsLocation = ref(false)
+  const needsOptIn = ref(false)
+  const cooldownMessage = ref('')
 
   async function searchPeople(filters: PeopleFilters = {}) {
     loading.value = true
     error.value = null
     needsLocation.value = false
+    needsOptIn.value = false
 
     try {
       return await $fetch<PeopleSearchResponse>('/api/people', { query: toQuery(filters) })
     } catch (e) {
+      const { statusCode } = (e ?? {}) as FetchError
       if (isMissingLocation(e)) {
         needsLocation.value = true
+      } else if (statusCode === 403) {
+        needsOptIn.value = true
+      } else if (statusCode === 429) {
+        error.value = rateLimitMessage(e, 'You have searched a lot. Try again')
       } else {
         error.value = 'Could not load people. Please try again.'
       }
@@ -56,6 +76,7 @@ export function usePeople() {
 
   async function updatePeopleSettings(input: PeopleSettingsInput) {
     saving.value = true
+    cooldownMessage.value = ''
 
     try {
       const settings = await $fetch<PeopleSettings>('/api/users/people-settings', {
@@ -66,7 +87,10 @@ export function usePeople() {
       notifications.success('Meet people settings saved')
       return settings
     } catch (e) {
-      const message = (e as FetchError).data?.message
+      if ((e as FetchError).statusCode === 429) {
+        cooldownMessage.value = rateLimitMessage(e, 'You can change your location again')
+      }
+      const message = cooldownMessage.value || (e as FetchError).data?.message
       notifications.error(message || 'Failed to save Meet people settings')
       throw e
     } finally {
@@ -74,5 +98,14 @@ export function usePeople() {
     }
   }
 
-  return { loading, saving, error, needsLocation, searchPeople, updatePeopleSettings }
+  return {
+    loading,
+    saving,
+    error,
+    needsLocation,
+    needsOptIn,
+    cooldownMessage,
+    searchPeople,
+    updatePeopleSettings,
+  }
 }

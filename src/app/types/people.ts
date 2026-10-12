@@ -1,6 +1,6 @@
-import type { LookingFor, PublicUser } from './user'
+import type { LookingFor, PeopleCardUser } from './user'
 
-export interface PublicPerson extends PublicUser {
+export interface PublicPerson extends PeopleCardUser {
   /** Bucketed distance such as "~3 km"; never precise */
   distanceLabel: string
   lookingFor: LookingFor[]

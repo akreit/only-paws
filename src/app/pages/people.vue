@@ -77,6 +77,17 @@
         </NuxtLink>
       </div>
 
+      <div
+        v-else-if="needsOptIn"
+        class="rounded-lg bg-blue-50 p-6 text-center"
+        data-testid="needs-opt-in"
+      >
+        <p class="mb-4 text-gray-700">Turn on Meet people in your profile to browse.</p>
+        <NuxtLink to="/profile#meet-people">
+          <Button variant="primary">Open Meet people settings</Button>
+        </NuxtLink>
+      </div>
+
       <div v-else-if="loading && people.length === 0" class="flex justify-center py-12">
         <LoadingSpinner size="lg" text="Looking for people nearby..." />
       </div>
@@ -165,7 +176,7 @@ import Select from '~/components/ui/Select.vue'
 import LoadingSpinner from '~/components/ui/LoadingSpinner.vue'
 
 const { isSignedIn, isLoaded } = useAuth()
-const { loading, error, needsLocation, searchPeople } = usePeople()
+const { loading, error, needsLocation, needsOptIn, searchPeople } = usePeople()
 
 const radiusOptions = PEOPLE_RADII_KM.map((km) => ({ value: km, label: `${km} km` }))
 

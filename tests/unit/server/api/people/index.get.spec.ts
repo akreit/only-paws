@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { setupServerMocks, createMockEvent } from '../../../../helpers/server'
+import { setupServerMocks, createMockEvent, makeError } from '../../../../helpers/server'
 
 const mocks = setupServerMocks()
 
@@ -8,6 +8,7 @@ const handler = (await import('#server/api/people/index.get')).default
 const me = {
   id: 'me',
   clerkUserId: 'clerk_123',
+  discoverable: true,
   approxLatitude: 52.52,
   approxLongitude: 13.4,
   lookingFor: ['FRIENDS', 'TIPS'],
@@ -43,14 +44,11 @@ async function call(query: Record<string, unknown> = {}) {
 describe('GET /api/people', () => {
   beforeEach(() => {
     vi.resetAllMocks()
-    mocks.createError.mockImplementation((opts: { statusCode: number; message: string }) => {
-      const err = new Error(opts.message) as Error & { statusCode: number }
-      err.statusCode = opts.statusCode
-      return err
-    })
+    mocks.createError.mockImplementation(makeError)
     mocks.requireAuth.mockResolvedValue('clerk_123')
     mocks.prisma.user.findUnique.mockResolvedValue(me)
     mocks.prisma.user.findMany.mockResolvedValue([])
+    mocks.prisma.user.updateMany.mockResolvedValue({ count: 1 })
   })
 
   it('rejects unauthenticated requests', async () => {
@@ -73,6 +71,37 @@ describe('GET /api/people', () => {
       statusCode: 400,
       message: expect.stringContaining(message),
     })
+    expect(mocks.prisma.user.findMany).not.toHaveBeenCalled()
+  })
+
+  it('returns 403 unless the searcher is discoverable, before any other work', async () => {
+    mocks.prisma.user.findUnique.mockResolvedValue({
+      ...me,
+      discoverable: false,
+      approxLatitude: null,
+    })
+    await expect(call()).rejects.toMatchObject({
+      statusCode: 403,
+      message: 'Turn on Meet people in your profile to browse people',
+    })
+    expect(mocks.prisma.user.updateMany).not.toHaveBeenCalled()
+    expect(mocks.prisma.user.findMany).not.toHaveBeenCalled()
+  })
+
+  it('returns 429 with Retry-After and retryAt and skips the search when rate limited', async () => {
+    const windowStart = new Date(Date.now() - 10 * 60 * 1000)
+    mocks.prisma.user.updateMany.mockResolvedValue({ count: 0 })
+    mocks.prisma.user.findUnique.mockResolvedValue({ ...me, peopleSearchWindowStart: windowStart })
+
+    await expect(call()).rejects.toMatchObject({
+      statusCode: 429,
+      data: { retryAt: new Date(windowStart.getTime() + 3600_000).toISOString() },
+    })
+    expect(mocks.setResponseHeader).toHaveBeenCalledWith(
+      expect.anything(),
+      'Retry-After',
+      expect.any(Number)
+    )
     expect(mocks.prisma.user.findMany).not.toHaveBeenCalled()
   })
 

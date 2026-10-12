@@ -9,6 +9,7 @@ const isLoaded = ref(true)
 const loading = ref(false)
 const error = ref<string | null>(null)
 const needsLocation = ref(false)
+const needsOptIn = ref(false)
 
 const person = {
   id: 'p1',
@@ -41,13 +42,14 @@ describe('people page', () => {
     loading.value = false
     error.value = null
     needsLocation.value = false
+    needsOptIn.value = false
     vi.stubGlobal('computed', computed)
     vi.stubGlobal('ref', ref)
     vi.stubGlobal('reactive', reactive)
     vi.stubGlobal('watch', watch)
     vi.stubGlobal('useHead', vi.fn())
     vi.stubGlobal('useAuth', () => ({ isSignedIn, isLoaded }))
-    vi.stubGlobal('usePeople', () => ({ loading, error, needsLocation, searchPeople }))
+    vi.stubGlobal('usePeople', () => ({ loading, error, needsLocation, needsOptIn, searchPeople }))
   })
 
   it('shows a pitch and sign-in button to signed-out users without searching', () => {
@@ -112,6 +114,26 @@ describe('people page', () => {
     await flushPromises()
 
     expect(wrapper.find('[data-testid="no-location"]').text()).toContain('approximate location')
+  })
+
+  it('points to the Meet people settings when the API answers 403', async () => {
+    searchPeople.mockResolvedValue(null)
+    needsOptIn.value = true
+    const wrapper = mountPage()
+    await flushPromises()
+
+    const box = wrapper.find('[data-testid="needs-opt-in"]')
+    expect(box.text()).toContain('Turn on Meet people in your profile to browse')
+    expect(wrapper.html()).toContain('/profile#meet-people')
+  })
+
+  it('shows the rate limit message from the composable', async () => {
+    searchPeople.mockResolvedValue(null)
+    error.value = 'You have searched a lot. Try again after 10/12/2026, 5:30:00 PM.'
+    const wrapper = mountPage()
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="error"]').text()).toContain('Try again after')
   })
 
   it('applies filters and appends the next page on "Load more"', async () => {

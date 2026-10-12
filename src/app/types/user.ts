@@ -1,4 +1,6 @@
-export const LOOKING_FOR_VALUES = ['FRIENDS', 'PLACES', 'TIPS', 'PLAYDATES'] as const
+import { LOOKING_FOR_VALUES } from '../../../shared/utils/people'
+
+export { LOOKING_FOR_VALUES }
 
 export type LookingFor = (typeof LOOKING_FOR_VALUES)[number]
 
@@ -29,19 +31,12 @@ export interface User {
   updatedAt: Date
 }
 
-/** The subset of a user that is safe to show to others (author, uploader). */
-export type PublicUser = Pick<
-  User,
-  | 'id'
-  | 'username'
-  | 'avatarUrl'
-  | 'bio'
-  | 'homeCity'
-  | 'hasDog'
-  | 'dogName'
-  | 'dogBreed'
-  | 'lookingFor'
->
+/** The minimal subset of a user that is safe to show to others (author, uploader). */
+export type PublicUser = Pick<User, 'id' | 'username' | 'avatarUrl'>
+
+/** Profile fields shown on "Meet people" cards (discoverable users only). */
+export type PeopleCardUser = PublicUser &
+  Pick<User, 'bio' | 'homeCity' | 'hasDog' | 'dogName' | 'dogBreed' | 'lookingFor'>
 
 export interface UpdateUserInput {
   username?: string

@@ -1,48 +1,41 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { computed, reactive, ref, watch } from 'vue'
 import { flushPromises, mount } from '@vue/test-utils'
-import ProfilePage from '~/pages/profile.vue'
+import ProfileMeetPeople from '~/components/profile/ProfileMeetPeople.vue'
 
 const updatePeopleSettings = vi.fn()
 const geocodeAddress = vi.fn()
+const cooldownMessage = ref('')
 const profile = ref<Record<string, unknown> | null>(null)
 
-// The page imports this composable explicitly, so a global stub would not reach it
+// The component imports this composable explicitly, so a global stub would not reach it
 vi.mock('~/composables/useProfile', () => ({
   useProfile: () => ({
     profile,
-    saving: ref(false),
-    fetchProfile: vi.fn().mockResolvedValue({ locations: [], reviews: [] }),
-    saveProfile: vi.fn(),
   }),
 }))
 
 function mountPage() {
-  return mount(ProfilePage, {
-    global: {
-      stubs: { NuxtLink: true, LocationCard: true, Rating: true, LoadingSpinner: true },
-    },
-  })
+  return mount(ProfileMeetPeople)
 }
 
-describe('profile "Meet people" section', () => {
+describe('ProfileMeetPeople', () => {
   beforeEach(() => {
     updatePeopleSettings.mockReset().mockResolvedValue({})
     geocodeAddress.mockReset()
+    cooldownMessage.value = ''
     profile.value = { discoverable: false, hasApproxLocation: false, homeCity: 'Berlin' }
     vi.stubGlobal('computed', computed)
     vi.stubGlobal('ref', ref)
     vi.stubGlobal('reactive', reactive)
     vi.stubGlobal('watch', watch)
     vi.stubGlobal('useHead', vi.fn())
-    vi.stubGlobal('useAuth', () => ({ isSignedIn: ref(true), isLoaded: ref(true) }))
-    vi.stubGlobal('useUser', () => ({ user: ref({ username: 'me' }) }))
-    vi.stubGlobal('useFavorites', () => ({
-      ensureFavorites: vi.fn().mockResolvedValue(undefined),
-      favoriteLocations: ref([]),
-    }))
     vi.stubGlobal('useMap', () => ({ geocodeAddress }))
-    vi.stubGlobal('usePeople', () => ({ saving: ref(false), updatePeopleSettings }))
+    vi.stubGlobal('usePeople', () => ({
+      saving: ref(false),
+      cooldownMessage,
+      updatePeopleSettings,
+    }))
   })
 
   it('shows the explanation and that no location is set', async () => {
@@ -94,7 +87,7 @@ describe('profile "Meet people" section', () => {
     await flushPromises()
 
     expect((toggle.element as HTMLInputElement).checked).toBe(false)
-    expect(wrapper.text()).toContain('Set your approximate location first')
+    expect(wrapper.text()).toContain('Choose a location below')
   })
 
   it('sends the browser location', async () => {
@@ -109,7 +102,11 @@ describe('profile "Meet people" section', () => {
       .trigger('click')
     await flushPromises()
 
-    expect(updatePeopleSettings).toHaveBeenCalledWith({ latitude: 52.52, longitude: 13.4 })
+    expect(updatePeopleSettings).toHaveBeenCalledWith({
+      discoverable: true,
+      latitude: 52.52,
+      longitude: 13.4,
+    })
   })
 
   it('reports a denied browser location', async () => {
@@ -153,7 +150,11 @@ describe('profile "Meet people" section', () => {
     await flushPromises()
 
     expect(geocodeAddress).toHaveBeenCalledWith('Berlin')
-    expect(updatePeopleSettings).toHaveBeenCalledWith({ latitude: 52.5, longitude: 13.4 })
+    expect(updatePeopleSettings).toHaveBeenCalledWith({
+      discoverable: true,
+      latitude: 52.5,
+      longitude: 13.4,
+    })
   })
 
   it('handles a home city that cannot be found or geocoded', async () => {
@@ -179,5 +180,58 @@ describe('profile "Meet people" section', () => {
 
     const button = wrapper.findAll('button').find((b) => b.text().includes('home city'))!
     expect(button.attributes('disabled')).toBeDefined()
+  })
+
+  it('does not send discoverable again when already opted in', async () => {
+    profile.value = { discoverable: true, hasApproxLocation: true, homeCity: 'Berlin' }
+    geocodeAddress.mockResolvedValue({ lat: 1, lng: 2 })
+    const wrapper = mountPage()
+    await flushPromises()
+
+    await wrapper
+      .findAll('button')
+      .find((b) => b.text().includes('home city'))!
+      .trigger('click')
+    await flushPromises()
+
+    expect(updatePeopleSettings).toHaveBeenCalledWith({ latitude: 1, longitude: 2 })
+  })
+
+  it('shows the cooldown message when the location was changed recently', async () => {
+    profile.value = { discoverable: true, hasApproxLocation: true, homeCity: 'Berlin' }
+    geocodeAddress.mockResolvedValue({ lat: 1, lng: 2 })
+    updatePeopleSettings.mockImplementation(async () => {
+      cooldownMessage.value = 'You can change your location again after 1/1/2027, 10:00:00 AM.'
+      throw new Error('429')
+    })
+    const wrapper = mountPage()
+    await flushPromises()
+
+    await wrapper
+      .findAll('button')
+      .find((b) => b.text().includes('home city'))!
+      .trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('You can change your location again after')
+  })
+
+  it('shows the cooldown message when the toggle is rejected', async () => {
+    updatePeopleSettings.mockImplementation(async () => {
+      cooldownMessage.value = 'You can change your location again after later.'
+      throw new Error('429')
+    })
+    const wrapper = mountPage()
+    await flushPromises()
+
+    await wrapper.find('[data-testid="discoverable-toggle"]').setValue(true)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('You can change your location again')
+  })
+
+  it('has the anchor the people page links to', async () => {
+    const wrapper = mountPage()
+    expect(wrapper.find('section#meet-people').exists()).toBe(true)
   })
 })

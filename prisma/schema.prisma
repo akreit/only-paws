@@ -24,6 +24,12 @@ model User {
   approxLatitude          Float?
   approxLongitude         Float?
   approxLocationUpdatedAt DateTime?
+  // Fixed per-user offset added to the rounded location; never sent to clients
+  approxJitterLat         Float?
+  approxJitterLng         Float?
+  // "Meet people" search rate limit: fixed one-hour window
+  peopleSearchCount       Int       @default(0)
+  peopleSearchWindowStart DateTime?
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

@@ -7,9 +7,20 @@ import {
   withAverageRating,
 } from '../../src/server/utils/location'
 import { toCurrentUser } from '../../src/server/utils/current-user'
-import { PUBLIC_USER_SELECT } from '../../src/server/utils/public-user'
+import {
+  enforcePeopleSearchLimit,
+  throwRateLimited,
+} from '../../src/server/utils/people-rate-limit'
+import { PEOPLE_CARD_SELECT, PUBLIC_USER_SELECT } from '../../src/server/utils/public-user'
 import { parseLocationUpdate } from '../../src/server/utils/location-update'
 import { parseReviewUpdate } from '../../src/server/utils/review-update'
+
+export function makeError(opts: { statusCode: number; message: string; data?: unknown }) {
+  const err = new Error(opts.message) as Error & { statusCode: number; data?: unknown }
+  err.statusCode = opts.statusCode
+  err.data = opts.data
+  return err
+}
 
 export function setupServerMocks() {
   const prisma = {
@@ -31,6 +42,7 @@ export function setupServerMocks() {
       findMany: vi.fn(),
       update: vi.fn(),
       upsert: vi.fn(),
+      updateMany: vi.fn(),
     },
     favorite: {
       findMany: vi.fn(),
@@ -44,11 +56,8 @@ export function setupServerMocks() {
   const getQuery = vi.fn().mockReturnValue({})
   const readBody = vi.fn().mockResolvedValue({})
   const getRouterParam = vi.fn()
-  const createError = vi.fn((opts: { statusCode: number; message: string }) => {
-    const err = new Error(opts.message) as Error & { statusCode: number }
-    err.statusCode = opts.statusCode
-    return err
-  })
+  const createError = vi.fn(makeError)
+  const setResponseHeader = vi.fn()
   const defineEventHandler = vi.fn((handler: (...args: unknown[]) => unknown) => handler)
 
   vi.stubGlobal('prisma', prisma)
@@ -57,12 +66,16 @@ export function setupServerMocks() {
   vi.stubGlobal('readBody', readBody)
   vi.stubGlobal('getRouterParam', getRouterParam)
   vi.stubGlobal('createError', createError)
+  vi.stubGlobal('setResponseHeader', setResponseHeader)
   vi.stubGlobal('defineEventHandler', defineEventHandler)
   vi.stubGlobal('withDatabaseErrorHandling', withDatabaseErrorHandling)
   // Real implementation, driven by the mocked requireAuth/prisma
   vi.stubGlobal('requireDbUser', requireDbUser)
+  vi.stubGlobal('enforcePeopleSearchLimit', enforcePeopleSearchLimit)
+  vi.stubGlobal('throwRateLimited', throwRateLimited)
   vi.stubGlobal('toCurrentUser', toCurrentUser)
   vi.stubGlobal('PUBLIC_USER_SELECT', PUBLIC_USER_SELECT)
+  vi.stubGlobal('PEOPLE_CARD_SELECT', PEOPLE_CARD_SELECT)
   vi.stubGlobal('LOCATION_LIST_INCLUDE', LOCATION_LIST_INCLUDE)
   vi.stubGlobal('LOCATION_DETAIL_INCLUDE', LOCATION_DETAIL_INCLUDE)
   vi.stubGlobal('withAverageRating', withAverageRating)
@@ -76,6 +89,7 @@ export function setupServerMocks() {
     readBody,
     getRouterParam,
     createError,
+    setResponseHeader,
     defineEventHandler,
   }
 }

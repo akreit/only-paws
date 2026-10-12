@@ -144,3 +144,30 @@ jobs:
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
           vercel-args: '--prod --yes'
+
+  # Staging: every push to develop becomes a Vercel *preview* deployment (never production),
+  # aliased to a stable URL. Feature branches never deploy (Git deployments are off in vercel.json).
+  deploy-staging:
+    name: Deploy to Vercel (staging)
+    runs-on: ubuntu-latest
+    needs: [build]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    concurrency:
+      group: deploy-staging
+      cancel-in-progress: true
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Deploy preview to Vercel
+        uses: amondnet/vercel-action@v42
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          # IDs are repository Actions variables (not secrets)
+          vercel-org-id: ${{ vars.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ vars.VERCEL_PROJECT_ID }}
+          target: preview
+          vercel-args: '--yes'
+          github-comment: false
+          alias-domains: only-paws-staging.vercel.app

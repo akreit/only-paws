@@ -170,14 +170,21 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
 
-      # The staging build migrates its Neon branch; migrate-deploy.mjs refuses (and fails the
-      # build) if the database is production. Fail here first if the fingerprint isn't set.
-      - name: Require production DB fingerprint
+      # The staging build migrates only if every DB URL matches STAGING_DATABASE_FINGERPRINT and
+      # none matches PRODUCTION_DATABASE_FINGERPRINT (scripts/migrate-deploy.mjs). Stop before
+      # deploying if either variable is missing. STAGING may be "pending" for the one-time setup
+      # run: the build then refuses and logs the fingerprint to save.
+      - name: Require database fingerprints
         env:
           PRODUCTION_DATABASE_FINGERPRINT: ${{ vars.PRODUCTION_DATABASE_FINGERPRINT }}
+          STAGING_DATABASE_FINGERPRINT: ${{ vars.STAGING_DATABASE_FINGERPRINT }}
         run: |
-          if ! [[ "$PRODUCTION_DATABASE_FINGERPRINT" =~ ^[0-9a-f]{64}$ ]]; then
+          if ! [[ "$PRODUCTION_DATABASE_FINGERPRINT" =~ ^[0-9a-f]{16}$ ]]; then
             echo "::error::Set the repository variable PRODUCTION_DATABASE_FINGERPRINT (see README > Deployment)."
+            exit 1
+          fi
+          if ! [[ "$STAGING_DATABASE_FINGERPRINT" =~ ^([0-9a-f]{16}|pending)$ ]]; then
+            echo "::error::Set the repository variable STAGING_DATABASE_FINGERPRINT (see README > Deployment)."
             exit 1
           fi
 
@@ -194,5 +201,6 @@ jobs:
             --yes
             --build-env MIGRATE_STAGING=1
             --build-env PRODUCTION_DATABASE_FINGERPRINT=${{ vars.PRODUCTION_DATABASE_FINGERPRINT }}
+            --build-env STAGING_DATABASE_FINGERPRINT=${{ vars.STAGING_DATABASE_FINGERPRINT }}
           github-comment: false
           alias-domains: only-paws-staging.vercel.app

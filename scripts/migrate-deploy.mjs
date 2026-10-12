@@ -1,8 +1,9 @@
 // Applies Prisma migrations during Vercel builds:
 // - production builds (VERCEL_ENV=production) migrate the production database;
 // - the develop staging build (VERCEL_ENV=preview + MIGRATE_STAGING=1, set by CI's deploy-staging
-//   job) migrates its Neon preview branch, but only after a hard guard proves the target database
-//   is not production. Any other build skips migrations.
+//   job) migrates only if every database URL matches the allowlisted STAGING_DATABASE_FINGERPRINT
+//   and none matches PRODUCTION_DATABASE_FINGERPRINT; otherwise it fails the build.
+// Any other build skips migrations.
 import { createHash } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
@@ -24,41 +25,78 @@ export function resolveMigrationUrl(env) {
   return env.DATABASE_URL_UNPOOLED || env.DATABASE_URL || undefined
 }
 
+const FINGERPRINT_RE = /^[0-9a-f]{16}$/
+
 /**
- * Non-secret identity of a database: SHA-256 of its lower-cased host with Neon's `-pooler`
- * suffix removed, so the pooled and direct URLs of one Neon endpoint (branch) match.
- * Returns null for unparsable URLs.
+ * Normalised database identity, or null if unparsable: the host (percent-decoded, lower-cased,
+ * trailing dot and IPv6 brackets removed, Neon's `-pooler` suffix stripped) plus the Neon endpoint
+ * id. The endpoint comes from `options=endpoint=<id>` when present (libpq/Neon route by it),
+ * otherwise from a `*.neon.tech` host. The port is ignored.
  */
-export function databaseFingerprint(url) {
-  let host
+export function databaseIdentity(url) {
+  let parsed
   try {
-    host = new URL(url).hostname.toLowerCase()
+    parsed = new URL(url)
   } catch {
     return null
   }
+  let host
+  try {
+    host = decodeURIComponent(parsed.hostname)
+  } catch {
+    return null
+  }
+  host = host
+    .toLowerCase()
+    .replace(/^\[(.*)\]$/, '$1')
+    .replace(/\.+$/, '')
   if (!host) return null
-  const [first, ...rest] = host.split('.')
-  const normalized = [first.replace(/-pooler$/, ''), ...rest].join('.')
-  return createHash('sha256').update(normalized).digest('hex')
+  const labels = host.split('.')
+  labels[0] = labels[0].replace(/-pooler$/, '')
+  host = labels.join('.')
+
+  let endpoint = ''
+  const options = parsed.searchParams.get('options')
+  const match = options && /(?:^|\s)endpoint=([^\s]+)/i.exec(options)
+  if (match) endpoint = match[1].toLowerCase()
+  else if (host.endsWith('.neon.tech')) endpoint = labels[0]
+  return `${host}|endpoint=${endpoint}`
+}
+
+/** Short, non-secret fingerprint (16 hex chars of SHA-256) of a database URL, or null. */
+export function databaseFingerprint(url) {
+  const identity = databaseIdentity(url)
+  if (!identity) return null
+  return createHash('sha256').update(identity).digest('hex').slice(0, 16)
+}
+
+function readFingerprint(value) {
+  const normalized = (value || '').trim().toLowerCase()
+  return FINGERPRINT_RE.test(normalized) ? normalized : null
 }
 
 /**
- * Hard guard for staging: refuse unless the production fingerprint is known and neither
- * DATABASE_URL nor DATABASE_URL_UNPOOLED points at that database. Returns an error message or null.
+ * Hard guard for staging (allowlist + denylist): every database URL (pooled and unpooled) must
+ * match STAGING_DATABASE_FINGERPRINT, and none may match PRODUCTION_DATABASE_FINGERPRINT.
+ * Returns an error message (including what was seen, so a refused run reveals the value to save)
+ * or null when migrating is allowed.
  */
 export function stagingGuardError(env) {
-  const prod = (env.PRODUCTION_DATABASE_FINGERPRINT || '').trim().toLowerCase()
-  if (!/^[0-9a-f]{64}$/.test(prod)) {
-    return 'PRODUCTION_DATABASE_FINGERPRINT is missing or invalid; refusing to migrate staging.'
-  }
   const urls = [env.DATABASE_URL, env.DATABASE_URL_UNPOOLED].filter(Boolean)
   if (urls.length === 0) return 'No DATABASE_URL_UNPOOLED or DATABASE_URL set.'
-  for (const url of urls) {
-    const fingerprint = databaseFingerprint(url)
-    if (!fingerprint) return 'A database URL could not be parsed; refusing to migrate staging.'
-    if (fingerprint === prod) {
-      return 'The staging build points at the PRODUCTION database; refusing to migrate.'
-    }
+  const seen = urls.map((url) => databaseFingerprint(url))
+  const seenText = `seen fingerprint(s): ${seen.map((f) => f ?? 'unparsable').join(', ')}`
+  if (seen.some((f) => !f)) return `A database URL could not be parsed (${seenText}).`
+
+  const prod = readFingerprint(env.PRODUCTION_DATABASE_FINGERPRINT)
+  const staging = readFingerprint(env.STAGING_DATABASE_FINGERPRINT)
+  if (!prod) return `PRODUCTION_DATABASE_FINGERPRINT is missing or invalid (${seenText}).`
+  if (!staging) return `STAGING_DATABASE_FINGERPRINT is missing or invalid (${seenText}).`
+  if (staging === prod) return 'STAGING_DATABASE_FINGERPRINT equals the production fingerprint.'
+  if (seen.some((f) => f === prod))
+    return `A database URL is the PRODUCTION database (${seenText}).`
+  if (seen.some((f) => f !== staging)) {
+    return `Database is not the staging branch (${seenText}; expected ${staging}).`
   }
   return null
 }
@@ -81,7 +119,7 @@ export function run(env = process.env) {
   if (target === 'staging') {
     const error = stagingGuardError(env)
     if (error) {
-      console.error(`[migrate-deploy] ${error} Failing the staging build.`)
+      console.error(`[migrate-deploy] Refusing to migrate staging: ${error} Failing the build.`)
       return 1
     }
   } else {

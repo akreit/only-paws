@@ -38,9 +38,16 @@ describe('POST /api/users/sync', () => {
   })
 
   it('upserts the profile fields loaded from Clerk', async () => {
-    mocks.prisma.user.upsert.mockResolvedValue({ id: 'u1' })
+    mocks.prisma.user.upsert.mockResolvedValue({
+      id: 'u1',
+      approxLatitude: 52.5,
+      approxLongitude: 13.4,
+    })
 
-    expect(await handler(createMockEvent())).toEqual({ id: 'u1' })
+    const result = await handler(createMockEvent())
+    expect(result).toMatchObject({ id: 'u1', hasApproxLocation: true })
+    expect(result).not.toHaveProperty('approxLatitude')
+    expect(result).not.toHaveProperty('approxLongitude')
     expect(getUser).toHaveBeenCalledWith('clerk_auth')
     expect(mocks.prisma.user.upsert).toHaveBeenCalledWith({
       where: { clerkUserId: 'clerk_auth' },

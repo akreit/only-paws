@@ -219,6 +219,8 @@
         </p>
       </div>
 
+      <ProfileMeetPeople />
+
       <!-- Stats -->
       <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div class="rounded-lg bg-white p-6 text-center shadow-md">
@@ -390,6 +392,7 @@ import Button from '~/components/ui/Button.vue'
 import Input from '~/components/ui/Input.vue'
 import { useProfile } from '~/composables/useProfile'
 import LoadingSpinner from '~/components/ui/LoadingSpinner.vue'
+import ProfileMeetPeople from '~/components/profile/ProfileMeetPeople.vue'
 
 const { isSignedIn, isLoaded } = useAuth()
 const { user } = useUser()

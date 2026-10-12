@@ -21,11 +21,13 @@ export default defineEventHandler(async (event) => {
     avatarUrl: clerkUser.imageUrl ?? null,
   }
 
-  return withDatabaseErrorHandling(() =>
+  const dbUser = await withDatabaseErrorHandling(() =>
     prisma.user.upsert({
       where: { clerkUserId },
       update: profile,
       create: { clerkUserId, ...profile },
     })
   )
+
+  return toCurrentUser(dbUser)
 })

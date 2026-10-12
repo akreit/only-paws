@@ -20,6 +20,12 @@
             Explore Map
           </NuxtLink>
           <NuxtLink
+            to="/people"
+            class="font-medium text-gray-700 transition-colors hover:text-blue-600"
+          >
+            Meet people
+          </NuxtLink>
+          <NuxtLink
             v-if="isSignedIn"
             to="/profile"
             class="font-medium text-gray-700 transition-colors hover:text-blue-600"
@@ -92,6 +98,13 @@
               @click="mobileMenuOpen = false"
             >
               Explore Map
+            </NuxtLink>
+            <NuxtLink
+              to="/people"
+              class="px-2 py-1 font-medium text-gray-700 hover:text-blue-600"
+              @click="mobileMenuOpen = false"
+            >
+              Meet people
             </NuxtLink>
             <NuxtLink
               v-if="isSignedIn"

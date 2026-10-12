@@ -97,4 +97,22 @@ describe('GET /api/users/profile', () => {
     })
     expect(result.locations.map((l) => l.averageRating)).toEqual([3, 0])
   })
+
+  it('exposes discoverable and hasApproxLocation but never coordinates', async () => {
+    mocks.prisma.user.findUnique.mockResolvedValue({
+      ...createMockUser(),
+      discoverable: true,
+      approxLatitude: 52.52,
+      approxLongitude: 13.4,
+      approxLocationUpdatedAt: new Date('2026-10-12'),
+      locations: [],
+      reviews: [],
+    })
+
+    const { user } = (await handler(createMockEvent())) as { user: Record<string, unknown> }
+
+    expect(user).toMatchObject({ discoverable: true, hasApproxLocation: true })
+    expect(user).not.toHaveProperty('approxLatitude')
+    expect(user).not.toHaveProperty('approxLongitude')
+  })
 })

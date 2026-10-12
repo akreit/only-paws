@@ -18,6 +18,19 @@ model User {
   dogName     String?
   dogBreed    String?
   lookingFor  LookingFor[] @default([])
+
+  // "Meet people": opt-in discoverability with a location rounded to ~1 km (never exact)
+  discoverable            Boolean   @default(false)
+  approxLatitude          Float?
+  approxLongitude         Float?
+  approxLocationUpdatedAt DateTime?
+  // Fixed per-user offset added to the rounded location; never sent to clients
+  approxJitterLat         Float?
+  approxJitterLng         Float?
+  // "Meet people" search rate limit: fixed one-hour window
+  peopleSearchCount       Int       @default(0)
+  peopleSearchWindowStart DateTime?
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -32,6 +45,8 @@ model User {
   comments  Comment[]
   favorites Favorite[]
   gallery   UserPhoto[]
+
+  @@index([discoverable, approxLatitude, approxLongitude])
 }
 
 model Location {

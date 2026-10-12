@@ -37,6 +37,10 @@ type CurrentUserSource = {
   instagramHandle: string | null
   profilePhotoUrl: string | null
   profilePhotoPublicId: string | null
+  discoverable: boolean
+  approxLatitude: number | null
+  approxLongitude: number | null
+  approxLocationUpdatedAt: Date | null
 }
 
 /** The signed-in user's own profile (includes email/clerkUserId, so never return it publicly). */
@@ -58,5 +62,9 @@ export function toCurrentUser(user: CurrentUserSource) {
     instagramHandle: user.instagramHandle,
     profilePhotoUrl: user.profilePhotoUrl,
     profilePhotoPublicId: user.profilePhotoPublicId,
+    // Meet people: whether a location is set, never the coordinates (or jitter)
+    discoverable: user.discoverable,
+    hasApproxLocation: user.approxLatitude != null && user.approxLongitude != null,
+    approxLocationUpdatedAt: user.approxLocationUpdatedAt,
   }
 }

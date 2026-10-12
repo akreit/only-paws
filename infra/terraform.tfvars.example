@@ -15,3 +15,5 @@ cloudinary_cloud_name    = ""
 cloudinary_api_key       = ""
 cloudinary_api_secret    = ""
 cloudinary_upload_preset = ""
+# Optional: dedicated unsigned preset for profile photos
+cloudinary_profile_upload_preset = ""

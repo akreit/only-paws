@@ -64,7 +64,23 @@ CLOUDINARY_CLOUD_NAME=your_cloudinary_cloud_name
 CLOUDINARY_API_KEY=your_cloudinary_api_key
 CLOUDINARY_API_SECRET=your_cloudinary_api_secret
 CLOUDINARY_UPLOAD_PRESET=your_upload_preset
+# Optional: dedicated unsigned preset for profile photos (falls back to CLOUDINARY_UPLOAD_PRESET)
+CLOUDINARY_PROFILE_UPLOAD_PRESET=
 ```
+
+### Cloudinary profile photo preset
+
+Profile photos are uploaded unsigned into `only-paws/users/<userId>/`, and the server rejects any `public_id` outside that folder. Create a dedicated unsigned preset and set it as `CLOUDINARY_PROFILE_UPLOAD_PRESET`. If it is unset, the shared place-photo preset is used, and that only works if the shared preset doesn't force a folder or prefix. Recommended preset settings:
+
+- Signing mode: **unsigned**
+- No `folder`, `asset_folder` or `public_id_prefix`, so the client's `folder` param is honoured
+- `use_filename`: false, `unique_filename`: true
+- `allowed_formats`: `jpg,png,webp`
+- Max file size: 5 MB (5242880 bytes)
+- Max image dimensions, e.g. an incoming transformation `c_limit,w_2000,h_2000`
+- Optional: `disallow_public_id`: true
+
+After configuring it, do one real upload and confirm the returned `public_id` starts with `only-paws/users/<id>/`. See #57.
 
 ## Getting Started
 

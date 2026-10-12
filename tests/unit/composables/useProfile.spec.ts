@@ -12,6 +12,7 @@ describe('useProfile', () => {
     setActivePinia(createPinia())
     fetchMock.mockReset()
     vi.stubGlobal('$fetch', fetchMock)
+    vi.stubGlobal('useRuntimeConfig', () => ({ public: {} }))
     vi.stubGlobal('ref', ref)
     vi.stubGlobal('computed', computed)
     vi.stubGlobal('useUserStore', useUserStore)

@@ -21,6 +21,10 @@ export interface User {
   dogName?: string | null
   dogBreed?: string | null
   lookingFor?: LookingFor[]
+  instagramHandle?: string | null
+  profilePhotoUrl?: string | null
+  /** Only present on the signed-in user's own profile */
+  profilePhotoPublicId?: string | null
   createdAt: Date
   updatedAt: Date
 }
@@ -44,4 +48,5 @@ export interface ProfileUpdateInput {
   dogName?: string | null
   dogBreed?: string | null
   lookingFor?: LookingFor[]
+  instagramHandle?: string | null
 }

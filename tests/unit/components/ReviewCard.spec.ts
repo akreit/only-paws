@@ -1,3 +1,4 @@
+import { getAvatarUrl } from '#shared/utils/profile-photo'
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { computed, ref } from 'vue'
 import { flushPromises, mount } from '@vue/test-utils'
@@ -41,6 +42,7 @@ describe('ReviewCard', () => {
     useAuthSync.mockReset()
     deleteReview.mockReset()
     vi.stubGlobal('computed', computed)
+    vi.stubGlobal('getAvatarUrl', getAvatarUrl)
     vi.stubGlobal('ref', ref)
     vi.stubGlobal('formatRelativeTime', formatRelativeTime)
     vi.stubGlobal('useUserStore', useUserStore)

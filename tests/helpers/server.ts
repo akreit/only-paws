@@ -1,6 +1,7 @@
 import { vi } from 'vitest'
 import { withDatabaseErrorHandling } from '../../src/server/utils/database'
-import { requireDbUser } from '../../src/server/utils/user'
+import { PUBLIC_USER_SELECT } from '../../src/server/utils/public-user'
+import { requireDbUser, toCurrentUser } from '../../src/server/utils/user'
 import {
   LOCATION_DETAIL_INCLUDE,
   LOCATION_LIST_INCLUDE,
@@ -37,6 +38,7 @@ export function setupServerMocks() {
     $queryRaw: vi.fn(),
   }
 
+  const useRuntimeConfig = vi.fn().mockReturnValue({ public: { cloudinaryCloudName: 'demo' } })
   const requireAuth = vi.fn()
   const getQuery = vi.fn().mockReturnValue({})
   const readBody = vi.fn().mockResolvedValue({})
@@ -50,6 +52,7 @@ export function setupServerMocks() {
 
   vi.stubGlobal('prisma', prisma)
   vi.stubGlobal('requireAuth', requireAuth)
+  vi.stubGlobal('useRuntimeConfig', useRuntimeConfig)
   vi.stubGlobal('getQuery', getQuery)
   vi.stubGlobal('readBody', readBody)
   vi.stubGlobal('getRouterParam', getRouterParam)
@@ -58,6 +61,8 @@ export function setupServerMocks() {
   vi.stubGlobal('withDatabaseErrorHandling', withDatabaseErrorHandling)
   // Real implementation, driven by the mocked requireAuth/prisma
   vi.stubGlobal('requireDbUser', requireDbUser)
+  vi.stubGlobal('PUBLIC_USER_SELECT', PUBLIC_USER_SELECT)
+  vi.stubGlobal('toCurrentUser', toCurrentUser)
   vi.stubGlobal('LOCATION_LIST_INCLUDE', LOCATION_LIST_INCLUDE)
   vi.stubGlobal('LOCATION_DETAIL_INCLUDE', LOCATION_DETAIL_INCLUDE)
   vi.stubGlobal('withAverageRating', withAverageRating)
@@ -67,6 +72,7 @@ export function setupServerMocks() {
   return {
     prisma,
     requireAuth,
+    useRuntimeConfig,
     getQuery,
     readBody,
     getRouterParam,

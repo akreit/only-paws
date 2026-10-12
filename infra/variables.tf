@@ -48,3 +48,9 @@ variable "cloudinary_upload_preset" {
   description = "Cloudinary upload preset"
   type        = string
 }
+
+variable "cloudinary_profile_upload_preset" {
+  description = "Optional dedicated unsigned Cloudinary preset for profile photos (falls back to cloudinary_upload_preset)"
+  type        = string
+  default     = ""
+}

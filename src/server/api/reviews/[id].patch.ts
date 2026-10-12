@@ -40,7 +40,7 @@ export default defineEventHandler(async (event) => {
       where: { id },
       data: parsed.data,
       include: {
-        author: true,
+        author: { select: PUBLIC_USER_SELECT },
       },
     })
   )

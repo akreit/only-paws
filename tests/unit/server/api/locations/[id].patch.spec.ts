@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
+import { PUBLIC_USER_SELECT } from '#server/utils/public-user'
 import { setupServerMocks, createMockEvent } from '../../../../helpers/server'
 
 const mocks = setupServerMocks()
@@ -100,8 +101,14 @@ describe('PATCH /api/locations/[id]', () => {
         amenities: JSON.stringify(['Patio']),
       },
       include: {
-        photos: { include: { uploader: true }, orderBy: { createdAt: 'desc' } },
-        reviews: { include: { author: true }, orderBy: { createdAt: 'desc' } },
+        photos: {
+          include: { uploader: { select: PUBLIC_USER_SELECT } },
+          orderBy: { createdAt: 'desc' },
+        },
+        reviews: {
+          include: { author: { select: PUBLIC_USER_SELECT } },
+          orderBy: { createdAt: 'desc' },
+        },
         _count: { select: { reviews: true, photos: true, favorites: true } },
       },
     })

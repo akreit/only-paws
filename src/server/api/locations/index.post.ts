@@ -5,7 +5,7 @@ export default defineEventHandler(async (event) => {
     photos: true,
     reviews: {
       include: {
-        author: true,
+        author: { select: PUBLIC_USER_SELECT },
       },
     },
     _count: {

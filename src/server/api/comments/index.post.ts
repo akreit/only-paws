@@ -19,7 +19,7 @@ export default defineEventHandler(async (event) => {
       authorId: dbUser.id,
     },
     include: {
-      author: true,
+      author: { select: PUBLIC_USER_SELECT },
     },
   })
 

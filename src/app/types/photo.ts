@@ -1,4 +1,4 @@
-import type { User } from './user'
+import type { PublicUser } from './user'
 import type { Comment } from './comment'
 
 export interface Photo {
@@ -8,7 +8,7 @@ export interface Photo {
   publicId: string
   locationId: string
   uploaderId: string
-  uploader?: User
+  uploader?: PublicUser
   createdAt: Date
   comments?: Comment[]
 }

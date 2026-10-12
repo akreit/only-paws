@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
+import { PUBLIC_USER_SELECT } from '../../../../../src/server/utils/public-user'
 import { setupServerMocks, createMockEvent } from '../../../../helpers/server'
 
 const mocks = setupServerMocks()
@@ -83,7 +84,7 @@ describe('PATCH /api/reviews/[id]', () => {
     expect(mocks.prisma.review.update).toHaveBeenCalledWith({
       where: { id: 'rev-1' },
       data: { rating: 2, comment: 'Meh' },
-      include: { author: true },
+      include: { author: { select: PUBLIC_USER_SELECT } },
     })
     expect(result).toMatchObject({ id: 'rev-1', rating: 2, author: { id: 'user-1' } })
   })

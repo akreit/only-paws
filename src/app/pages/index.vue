@@ -25,6 +25,9 @@
                 Explore Map
               </Button>
             </NuxtLink>
+            <NuxtLink to="/people">
+              <Button variant="outline" size="lg">🐕 Meet people</Button>
+            </NuxtLink>
             <NuxtLink v-if="!isSignedIn" to="/sign-up">
               <Button variant="outline" size="lg"> Get Started Free </Button>
             </NuxtLink>

@@ -1,11 +1,13 @@
 import { beforeAll, vi } from 'vitest'
 import { AMENITIES_OPTIONS } from '#shared/utils/amenities'
+import * as people from '#shared/utils/people'
 import { MAX_REVIEW_COMMENT_LENGTH, validateRating } from '#shared/utils/validation'
 
 // Nuxt auto-imports shared/utils in the app and Nitro; expose them the same way here
 vi.stubGlobal('AMENITIES_OPTIONS', AMENITIES_OPTIONS)
 vi.stubGlobal('MAX_REVIEW_COMMENT_LENGTH', MAX_REVIEW_COMMENT_LENGTH)
 vi.stubGlobal('validateRating', validateRating)
+for (const [name, value] of Object.entries(people)) vi.stubGlobal(name, value)
 
 // Mock environment variables
 process.env.CLERK_PUBLISHABLE_KEY = 'pk_test_mock'

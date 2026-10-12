@@ -1,4 +1,4 @@
-import type { User } from './user'
+import type { PublicUser } from './user'
 
 export interface Review {
   id: string
@@ -6,7 +6,7 @@ export interface Review {
   comment?: string
   locationId: string
   authorId: string
-  author?: User
+  author?: PublicUser
   createdAt: Date
   updatedAt: Date
 }

@@ -1,6 +1,7 @@
 export * from './location'
 export * from './user'
 export * from './comment'
+export * from './people'
 export * from './photo'
 export * from './review'
 export * from './ui'

@@ -6,6 +6,8 @@ import {
   LOCATION_LIST_INCLUDE,
   withAverageRating,
 } from '../../src/server/utils/location'
+import { toCurrentUser } from '../../src/server/utils/current-user'
+import { PUBLIC_USER_SELECT } from '../../src/server/utils/public-user'
 import { parseLocationUpdate } from '../../src/server/utils/location-update'
 import { parseReviewUpdate } from '../../src/server/utils/review-update'
 
@@ -26,6 +28,7 @@ export function setupServerMocks() {
     },
     user: {
       findUnique: vi.fn(),
+      findMany: vi.fn(),
       update: vi.fn(),
       upsert: vi.fn(),
     },
@@ -58,6 +61,8 @@ export function setupServerMocks() {
   vi.stubGlobal('withDatabaseErrorHandling', withDatabaseErrorHandling)
   // Real implementation, driven by the mocked requireAuth/prisma
   vi.stubGlobal('requireDbUser', requireDbUser)
+  vi.stubGlobal('toCurrentUser', toCurrentUser)
+  vi.stubGlobal('PUBLIC_USER_SELECT', PUBLIC_USER_SELECT)
   vi.stubGlobal('LOCATION_LIST_INCLUDE', LOCATION_LIST_INCLUDE)
   vi.stubGlobal('LOCATION_DETAIL_INCLUDE', LOCATION_DETAIL_INCLUDE)
   vi.stubGlobal('withAverageRating', withAverageRating)

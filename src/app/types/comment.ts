@@ -1,11 +1,11 @@
-import type { User } from './user'
+import type { PublicUser } from './user'
 
 export interface Comment {
   id: string
   text: string
   photoId: string
   authorId: string
-  author?: User
+  author?: PublicUser
   createdAt: Date
 }
 

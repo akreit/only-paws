@@ -21,9 +21,27 @@ export interface User {
   dogName?: string | null
   dogBreed?: string | null
   lookingFor?: LookingFor[]
+  /** Opted in to "Meet people"; coordinates are never sent to the client */
+  discoverable?: boolean
+  hasApproxLocation?: boolean
+  approxLocationUpdatedAt?: string | Date | null
   createdAt: Date
   updatedAt: Date
 }
+
+/** The subset of a user that is safe to show to others (author, uploader). */
+export type PublicUser = Pick<
+  User,
+  | 'id'
+  | 'username'
+  | 'avatarUrl'
+  | 'bio'
+  | 'homeCity'
+  | 'hasDog'
+  | 'dogName'
+  | 'dogBreed'
+  | 'lookingFor'
+>
 
 export interface UpdateUserInput {
   username?: string

@@ -18,6 +18,13 @@ model User {
   dogName     String?
   dogBreed    String?
   lookingFor  LookingFor[] @default([])
+
+  // "Meet people": opt-in discoverability with a location rounded to ~1 km (never exact)
+  discoverable            Boolean   @default(false)
+  approxLatitude          Float?
+  approxLongitude         Float?
+  approxLocationUpdatedAt DateTime?
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -26,6 +33,8 @@ model User {
   photos    Photo[]
   comments  Comment[]
   favorites Favorite[]
+
+  @@index([discoverable, approxLatitude, approxLongitude])
 }
 
 model Location {

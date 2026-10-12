@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
+import { PUBLIC_USER_SELECT } from '../../../../../src/server/utils/public-user'
 import { setupServerMocks, createMockEvent } from '../../../../helpers/server'
 
 const mocks = setupServerMocks()
@@ -62,7 +63,7 @@ describe('POST /api/reviews', () => {
 
     expect(mocks.prisma.review.create).toHaveBeenCalledWith({
       data: { rating: 5, comment: saved, locationId: 'loc-1', authorId: 'user-1' },
-      include: { author: true },
+      include: { author: { select: PUBLIC_USER_SELECT } },
     })
   })
 
@@ -74,7 +75,7 @@ describe('POST /api/reviews', () => {
 
     expect(mocks.prisma.review.create).toHaveBeenCalledWith({
       data: { rating: 4, comment: 'Nice', locationId: 'loc-1', authorId: 'user-1' },
-      include: { author: true },
+      include: { author: { select: PUBLIC_USER_SELECT } },
     })
     expect(result).toEqual({ id: 'rev-1' })
   })

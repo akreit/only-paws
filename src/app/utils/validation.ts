@@ -17,10 +17,6 @@ export function validatePhone(phone: string): boolean {
   return phoneRegex.test(phone) && phone.replace(/\D/g, '').length >= 10
 }
 
-export function validateRating(rating: number): boolean {
-  return rating >= 1 && rating <= 5 && Number.isInteger(rating)
-}
-
 export function validateCoordinates(lat: number, lng: number): boolean {
   return lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180
 }

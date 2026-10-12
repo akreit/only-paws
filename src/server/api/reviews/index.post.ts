@@ -5,18 +5,24 @@ export default defineEventHandler(async (event) => {
   const { rating, comment, locationId } = body
 
   // Validate required fields
-  if (!rating || !locationId || rating < 1 || rating > 5) {
+  if (!validateRating(rating) || typeof locationId !== 'string' || !locationId) {
     throw createError({
       statusCode: 400,
       message: 'Invalid input',
     })
   }
 
+  // Same rating/comment rules as editing (comment type, length, trimming)
+  const parsed = parseReviewUpdate({ rating, comment })
+  if ('error' in parsed) {
+    throw createError({ statusCode: 400, message: parsed.error })
+  }
+
   // Create review
   const review = await prisma.review.create({
     data: {
       rating,
-      comment,
+      comment: parsed.data.comment,
       locationId,
       authorId: dbUser.id,
     },

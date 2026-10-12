@@ -1,5 +1,6 @@
 import { useAuth as useClerkAuth, useUser as useClerkUser } from '@clerk/nuxt/composables'
 import type { User } from '~/types'
+import { clearLastPosition } from '~/utils/geolocation-preference'
 
 export function useAuthSync() {
   const { isSignedIn } = useClerkAuth()
@@ -51,7 +52,11 @@ export function useAuthSync() {
   // Keyed on the Clerk user id so unrelated user object updates don't re-sync.
   watch(
     [isSignedIn, () => clerkUser.value?.id],
-    async ([signedIn, clerkId]) => {
+    async ([signedIn, clerkId], old) => {
+      // Real sign-out or account switch (old is undefined on the immediate first run)
+      const previousId = old?.[1]
+      if (previousId && previousId !== clerkId) clearLastPosition()
+
       if (signedIn && clerkId) {
         await syncUser()
       } else {

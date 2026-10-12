@@ -76,8 +76,13 @@ export interface GooglePlaceDetails {
   types: string[]
 }
 
-export interface UpdateLocationInput extends Partial<CreateLocationInput> {
-  id: string
+/** Fields editable through PATCH /api/locations/[id]; `null` clears a feature. */
+export interface UpdateLocationInput {
+  type?: LocationType
+  leashRequired?: boolean | null
+  offLeashArea?: boolean | null
+  breedRestrictions?: string | null
+  amenities?: string[] | null
 }
 
 export interface LocationFilters {

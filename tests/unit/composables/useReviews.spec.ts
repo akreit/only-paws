@@ -41,6 +41,35 @@ describe('useReviews', () => {
     expect(markChanged).toHaveBeenCalledTimes(1)
   })
 
+  it('updateReview PATCHes, notifies and marks locations changed', async () => {
+    fetchMock.mockResolvedValue({ id: 'r1', rating: 3 })
+    const { updateReview, loading } = useReviews()
+
+    await expect(updateReview('r1', { rating: 3, comment: null })).resolves.toEqual({
+      id: 'r1',
+      rating: 3,
+    })
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/reviews/r1', {
+      method: 'PATCH',
+      body: { rating: 3, comment: null },
+    })
+    expect(markChanged).toHaveBeenCalledTimes(1)
+    expect(loading.value).toBe(false)
+    expect(useNotificationsStore().notifications[0]).toMatchObject({ type: 'success' })
+  })
+
+  it('updateReview notifies and does not mark locations changed on failure', async () => {
+    fetchMock.mockRejectedValue(new Error('nope'))
+    const { updateReview, loading } = useReviews()
+
+    await expect(updateReview('r1', { rating: 3 })).rejects.toThrow('nope')
+
+    expect(markChanged).not.toHaveBeenCalled()
+    expect(loading.value).toBe(false)
+    expect(useNotificationsStore().notifications[0]).toMatchObject({ type: 'error' })
+  })
+
   it('does not mark locations changed when a write fails', async () => {
     fetchMock.mockRejectedValue(new Error('nope'))
     const { createReview, deleteReview } = useReviews()

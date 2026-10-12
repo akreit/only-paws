@@ -1,4 +1,4 @@
-import type { Location, CreateLocationInput, LocationFilters } from '~/types'
+import type { Location, CreateLocationInput, LocationFilters, UpdateLocationInput } from '~/types'
 import { locationsCacheBust, markLocationsChanged } from '~/utils/locations-cache'
 
 export const LOCATIONS_UNAVAILABLE_MESSAGE = 'Saved places are currently unavailable'
@@ -110,6 +110,28 @@ export function useLocations() {
     }
   }
 
+  // Leaves the store's loading/error alone: on the detail page those drive the whole-page
+  // spinner/error view, and a failed edit should only toast, not replace the page
+  async function updateLocation(id: string, input: UpdateLocationInput) {
+    try {
+      const location = await $fetch<Location>(`/api/locations/${id}`, {
+        method: 'PATCH',
+        body: input,
+      })
+
+      markLocationsChanged()
+      locationsStore.updateLocation(location)
+      if (locationsStore.selectedLocation?.id === location.id) {
+        locationsStore.setSelectedLocation(location)
+      }
+      notifications.success('Location updated successfully!')
+      return location
+    } catch (error) {
+      notifications.error('Failed to update location')
+      throw error
+    }
+  }
+
   async function deleteLocation(id: string) {
     locationsStore.setLoading(true)
     locationsStore.setError(null)
@@ -141,6 +163,7 @@ export function useLocations() {
     fetchLocations,
     fetchLocation,
     createLocation,
+    updateLocation,
     deleteLocation,
     setFilters: locationsStore.setFilters,
     clearFilters: locationsStore.clearFilters,

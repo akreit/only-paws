@@ -1,7 +1,13 @@
 import { vi } from 'vitest'
 import { withDatabaseErrorHandling } from '../../src/server/utils/database'
 import { requireDbUser } from '../../src/server/utils/user'
-import { LOCATION_LIST_INCLUDE, withAverageRating } from '../../src/server/utils/location'
+import {
+  LOCATION_DETAIL_INCLUDE,
+  LOCATION_LIST_INCLUDE,
+  withAverageRating,
+} from '../../src/server/utils/location'
+import { parseLocationUpdate } from '../../src/server/utils/location-update'
+import { parseReviewUpdate } from '../../src/server/utils/review-update'
 
 export function setupServerMocks() {
   const prisma = {
@@ -9,6 +15,13 @@ export function setupServerMocks() {
       findMany: vi.fn(),
       findUnique: vi.fn(),
       create: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+    },
+    review: {
+      findUnique: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
       delete: vi.fn(),
     },
     user: {
@@ -46,7 +59,10 @@ export function setupServerMocks() {
   // Real implementation, driven by the mocked requireAuth/prisma
   vi.stubGlobal('requireDbUser', requireDbUser)
   vi.stubGlobal('LOCATION_LIST_INCLUDE', LOCATION_LIST_INCLUDE)
+  vi.stubGlobal('LOCATION_DETAIL_INCLUDE', LOCATION_DETAIL_INCLUDE)
   vi.stubGlobal('withAverageRating', withAverageRating)
+  vi.stubGlobal('parseLocationUpdate', parseLocationUpdate)
+  vi.stubGlobal('parseReviewUpdate', parseReviewUpdate)
 
   return {
     prisma,

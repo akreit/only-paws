@@ -3,7 +3,6 @@ import {
   validateEmail,
   validateUrl,
   validatePhone,
-  validateRating,
   validateCoordinates,
   validateRequiredString,
   validateStringLength,
@@ -45,20 +44,6 @@ describe('validatePhone', () => {
   it('rejects invalid phone numbers', () => {
     expect(validatePhone('123')).toBe(false)
     expect(validatePhone('abcdefghij')).toBe(false)
-  })
-})
-
-describe('validateRating', () => {
-  it('accepts valid ratings', () => {
-    expect(validateRating(1)).toBe(true)
-    expect(validateRating(5)).toBe(true)
-    expect(validateRating(3)).toBe(true)
-  })
-
-  it('rejects invalid ratings', () => {
-    expect(validateRating(0)).toBe(false)
-    expect(validateRating(6)).toBe(false)
-    expect(validateRating(3.5)).toBe(false)
   })
 })
 

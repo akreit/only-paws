@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { isProxy } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
 import { useMapStore } from '~/stores/map'
+import { useNotificationsStore } from '~/stores/notifications'
+import { getLastPosition } from '~/utils/geolocation-preference'
 
 const importLibraryMock = vi.hoisted(() => vi.fn())
 const setOptionsMock = vi.hoisted(() => vi.fn())
@@ -11,40 +14,16 @@ vi.mock('@googlemaps/js-api-loader', () => ({
 
 const geocode = vi.fn()
 
-// Minimal Map: center is a value-comparable stand-in for LatLng
-const fakeMaps = vi.hoisted(() => {
-  type Center = { lat: number; lng: number; equals: (o?: Center) => boolean }
-  const latLng = (lat: number, lng: number): Center => ({
-    lat,
-    lng,
-    equals: (o) => !!o && o.lat === lat && o.lng === lng,
-  })
-  const state = {
-    map: null as null | {
-      center: Center | undefined
-      zoom: number
-      panTo: ReturnType<typeof vi.fn>
-    },
-    // Simulates a map whose center is not yet defined at creation
-    noStartCenter: false,
+class FakeMap {
+  options: { center: { lat: number; lng: number } }
+  constructor(_el: unknown, options: { center: { lat: number; lng: number } }) {
+    this.options = options
+    created.push(this)
   }
-  class FakeMap {
-    center: Center | undefined = state.noStartCenter ? undefined : latLng(12.9716, 77.5946)
-    zoom = 13
-    panTo = vi.fn()
-    constructor() {
-      state.map = this
-    }
-    getCenter() {
-      return this.center
-    }
-    getZoom() {
-      return this.zoom
-    }
-    addListener = vi.fn()
-  }
-  return { FakeMap, latLng, state }
-})
+  addListener = vi.fn()
+}
+const created: FakeMap[] = []
+const lastMap = () => created.at(-1)!
 
 describe('useMap', () => {
   // The loader state is module-level, so load a fresh copy per test
@@ -56,10 +35,13 @@ describe('useMap', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.stubGlobal('useMapStore', useMapStore)
+    vi.stubGlobal('useNotificationsStore', useNotificationsStore)
+    localStorage.clear()
+    created.length = 0
     vi.stubGlobal('useRuntimeConfig', () => ({ public: { googleMapsApiKey: 'key' } }))
     vi.stubGlobal('google', undefined)
     importLibraryMock.mockReset().mockImplementation(async (name: string) => {
-      if (name === 'maps') vi.stubGlobal('google', { maps: { Map: fakeMaps.FakeMap } })
+      if (name === 'maps') vi.stubGlobal('google', { maps: { Map: FakeMap } })
       if (name === 'geocoding') {
         return {
           Geocoder: class {
@@ -94,119 +76,73 @@ describe('useMap', () => {
     await expect(loadGoogleMaps()).resolves.toBeDefined()
   })
 
-  describe('centerOnUserOnce', () => {
-    const fix = { coords: { latitude: 1, longitude: 2 } }
-    const position = { lat: 1, lng: 2 }
-    let deliverFix: () => void
-    let getCurrentPosition: ReturnType<typeof vi.fn>
+  describe('preloadMap', () => {
+    it('only warms the Maps script, once', async () => {
+      const { preloadMap } = await freshUseMap()
 
-    beforeEach(() => {
-      getCurrentPosition = vi.fn((success) => {
-        deliverFix = () => success(fix)
-      })
-      vi.stubGlobal('navigator', { geolocation: { getCurrentPosition } })
-      fakeMaps.state.map = null
-      fakeMaps.state.noStartCenter = false
+      preloadMap()
+      preloadMap()
+
+      expect(importLibraryMock).toHaveBeenCalledTimes(1)
+      expect(importLibraryMock).toHaveBeenCalledWith('maps')
     })
 
-    it('requests one fix with the agreed options', async () => {
-      const { centerOnUserOnce } = await freshUseMap()
-      centerOnUserOnce({ isActive: () => true })
+    it('never touches geolocation or permissions, nor saves a position', async () => {
+      const getCurrentPosition = vi.fn()
+      const query = vi.fn(async () => ({ state: 'granted' }))
+      vi.stubGlobal('navigator', { geolocation: { getCurrentPosition }, permissions: { query } })
+      const { preloadMap } = await freshUseMap()
 
-      expect(getCurrentPosition).toHaveBeenCalledWith(expect.any(Function), expect.any(Function), {
-        timeout: 5000,
-        maximumAge: 5 * 60 * 1000,
-      })
+      preloadMap()
+      await new Promise((resolve) => setTimeout(resolve, 0))
+
+      expect(getCurrentPosition).not.toHaveBeenCalled()
+      expect(query).not.toHaveBeenCalled()
+      expect(getLastPosition()).toBeNull()
     })
 
-    it('does nothing without navigator.geolocation', async () => {
-      vi.stubGlobal('navigator', {})
-      const { centerOnUserOnce } = await freshUseMap()
+    it('never throws when loading fails', async () => {
+      importLibraryMock.mockRejectedValue(new Error('offline'))
+      vi.spyOn(console, 'error').mockImplementation(() => {})
+      const { preloadMap } = await freshUseMap()
 
-      expect(() => centerOnUserOnce({ isActive: () => true })).not.toThrow()
+      expect(() => preloadMap()).not.toThrow()
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+  })
+
+  describe('initializeMap center', () => {
+    const bangalore = { lat: 12.9716, lng: 77.5946 }
+
+    it('prefers the store center over initialCenter', async () => {
+      const { initializeMap, mapStore } = await freshUseMap()
+      mapStore.setCenter({ lat: 5, lng: 6 })
+
+      await initializeMap(document.createElement('div'), { initialCenter: { lat: 1, lng: 2 } })
+
+      expect(lastMap().options.center).toEqual({ lat: 5, lng: 6 })
     })
 
-    it('pans (store follows via center_changed) when the map has not moved or zoomed', async () => {
-      const { centerOnUserOnce, initializeMap, mapStore } = await freshUseMap()
-      await initializeMap(document.createElement('div'))
-      centerOnUserOnce({ isActive: () => true })
+    it('uses initialCenter, then falls back to Bangalore', async () => {
+      const { initializeMap } = await freshUseMap()
 
-      deliverFix()
+      await initializeMap(document.createElement('div'), { initialCenter: { lat: 1, lng: 2 } })
+      expect(lastMap().options.center).toEqual({ lat: 1, lng: 2 })
 
-      expect(fakeMaps.state.map!.panTo).toHaveBeenCalledWith(position)
-      // No direct store write: the center_changed listener owns store sync
-      expect(mapStore.center).toBeNull()
-    })
-
-    it('does not pan when only the zoom changed before the fix arrived', async () => {
-      const { centerOnUserOnce, initializeMap } = await freshUseMap()
-      await initializeMap(document.createElement('div'))
-      centerOnUserOnce({ isActive: () => true })
-      // +/- zoom keeps the center
-      fakeMaps.state.map!.zoom = 15
-
-      deliverFix()
-
-      expect(fakeMaps.state.map!.panTo).not.toHaveBeenCalled()
-    })
-
-    it('still pans when the start center was undefined and the zoom is unchanged', async () => {
-      fakeMaps.state.noStartCenter = true
-      const { centerOnUserOnce, initializeMap } = await freshUseMap()
-      await initializeMap(document.createElement('div'))
-      centerOnUserOnce({ isActive: () => true })
-      fakeMaps.state.map!.center = fakeMaps.latLng(12.9716, 77.5946)
-
-      deliverFix()
-
-      expect(fakeMaps.state.map!.panTo).toHaveBeenCalledWith(position)
-    })
-
-    it('does not pan when the map center changed before the fix arrived', async () => {
-      const { centerOnUserOnce, initializeMap, mapStore } = await freshUseMap()
-      await initializeMap(document.createElement('div'))
-      centerOnUserOnce({ isActive: () => true })
-      // e.g. a search pick panned the map
-      fakeMaps.state.map!.center = fakeMaps.latLng(40, -70)
-      const centerBefore = mapStore.center
-
-      deliverFix()
-
-      expect(fakeMaps.state.map!.panTo).not.toHaveBeenCalled()
-      expect(mapStore.center).toEqual(centerBefore)
-    })
-
-    it('does nothing when the page is no longer active', async () => {
-      let active = true
-      const { centerOnUserOnce, initializeMap, mapStore } = await freshUseMap()
-      await initializeMap(document.createElement('div'))
-      centerOnUserOnce({ isActive: () => active })
-      active = false
-
-      deliverFix()
-
-      expect(fakeMaps.state.map!.panTo).not.toHaveBeenCalled()
-      expect(mapStore.center).toBeNull()
-    })
-
-    it('only sets the store center when the fix arrives before the map exists', async () => {
-      const { centerOnUserOnce, initializeMap, mapStore } = await freshUseMap()
-      centerOnUserOnce({ isActive: () => true })
-
-      deliverFix()
-
-      expect(fakeMaps.state.map).toBeNull()
-      expect(mapStore.center).toEqual(position)
+      await initializeMap(document.createElement('div'), { initialCenter: null })
+      expect(lastMap().options.center).toEqual(bangalore)
 
       await initializeMap(document.createElement('div'))
-      expect(fakeMaps.state.map!.panTo).not.toHaveBeenCalled()
+      expect(lastMap().options.center).toEqual(bangalore)
     })
 
-    it('ignores geolocation errors', async () => {
-      getCurrentPosition.mockImplementation((_ok, fail) => fail({ code: 1 }))
-      const { centerOnUserOnce } = await freshUseMap()
+    it('stores the map instance raw (not a reactive proxy)', async () => {
+      const { initializeMap, mapStore } = await freshUseMap()
 
-      expect(() => centerOnUserOnce({ isActive: () => true })).not.toThrow()
+      const map = await initializeMap(document.createElement('div'))
+
+      expect(mapStore.mapInstance).toBe(map)
+      expect(isProxy(mapStore.mapInstance)).toBe(false)
     })
   })
 

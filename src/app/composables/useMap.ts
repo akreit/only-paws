@@ -27,42 +27,19 @@ export function useMap() {
       .catch(() => {})
   }
 
-  // Where the map started; a fix is only applied if nothing has moved or zoomed the map since
-  let initialMap: {
-    map: google.maps.Map
-    center: google.maps.LatLng | undefined
-    zoom: number | undefined
-  } | null = null
-
-  /**
-   * Request the user's position once, in parallel with Maps loading. A fix arriving before the
-   * map exists becomes its initial center; a later one only pans a map that hasn't moved or zoomed.
-   */
-  function centerOnUserOnce({ isActive }: { isActive: () => boolean }): void {
-    if (!navigator.geolocation) return
-
-    navigator.geolocation.getCurrentPosition(
-      ({ coords }) => {
-        if (!isActive()) return
-        const position = { lat: coords.latitude, lng: coords.longitude }
-        if (!initialMap) {
-          mapStore.setCenter(position)
-          return
-        }
-        const { map, center, zoom } = initialMap
-        if ((center && !map.getCenter()?.equals(center)) || map.getZoom() !== zoom) return
-        // center_changed keeps the store in sync
-        map.panTo(position)
-      },
-      () => {},
-      { timeout: 5000, maximumAge: 5 * 60 * 1000 }
-    )
+  /** Warm the Maps script only; never reads or saves the user's position. Never throws. */
+  function preloadMap(): void {
+    void loadGoogleMaps().catch(() => {})
   }
 
-  async function initializeMap(element: HTMLElement): Promise<google.maps.Map> {
+  /** The center is the store's, else the caller-resolved `initialCenter`, else Bangalore. */
+  async function initializeMap(
+    element: HTMLElement,
+    { initialCenter }: { initialCenter?: { lat: number; lng: number } | null } = {}
+  ): Promise<google.maps.Map> {
     await loadGoogleMaps()
 
-    const center = mapStore.center ?? { lat: 12.9716, lng: 77.5946 }
+    const center = mapStore.center ?? initialCenter ?? { lat: 12.9716, lng: 77.5946 }
     const zoom = mapStore.zoom
 
     const map = new google.maps.Map(element, {
@@ -81,7 +58,6 @@ export function useMap() {
       )
     }
 
-    initialMap = { map, center: map.getCenter(), zoom: map.getZoom() }
     mapStore.setMapInstance(map)
 
     map.addListener('center_changed', () => {
@@ -163,7 +139,7 @@ export function useMap() {
     loadGoogleMaps,
     prefetchPlaces,
     initializeMap,
-    centerOnUserOnce,
+    preloadMap,
     createMarker,
     geocodeAddress,
     reverseGeocode,

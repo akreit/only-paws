@@ -4,6 +4,7 @@ import { setActivePinia, createPinia } from 'pinia'
 import { useUserStore } from '~/stores/user'
 import { useNotificationsStore } from '~/stores/notifications'
 import { useFavorites } from '~/composables/useFavorites'
+import { getLastPosition, saveLastPosition } from '~/utils/geolocation-preference'
 
 const { isSignedIn, isLoaded, clerkUser } = await vi.hoisted(async () => {
   const { ref } = await import('vue')
@@ -271,6 +272,59 @@ describe('useAuthSync', () => {
 
       syncB.resolve({ id: 'uB', clerkUserId: 'clerk_2' })
       await flush()
+    })
+
+    describe('stored position', () => {
+      beforeEach(() => {
+        localStorage.clear()
+        saveLastPosition({ lat: 1, lng: 2 })
+      })
+
+      it('is kept on an anonymous first load', async () => {
+        run()
+        await flush()
+
+        expect(getLastPosition()).not.toBeNull()
+      })
+
+      it('is kept on sign-in', async () => {
+        mockApi()
+        run()
+        await flush()
+        isSignedIn.value = true
+        clerkUser.value = clerk
+        await flush()
+
+        expect(getLastPosition()).not.toBeNull()
+      })
+
+      it('is cleared on sign-out', async () => {
+        mockApi()
+        isSignedIn.value = true
+        clerkUser.value = clerk
+        run()
+        await flush()
+        expect(getLastPosition()).not.toBeNull()
+
+        isSignedIn.value = false
+        clerkUser.value = null
+        await flush()
+
+        expect(getLastPosition()).toBeNull()
+      })
+
+      it('is cleared on an account switch', async () => {
+        mockApi()
+        isSignedIn.value = true
+        clerkUser.value = clerk
+        run()
+        await flush()
+
+        clerkUser.value = { ...clerk, id: 'clerk_2' }
+        await flush()
+
+        expect(getLastPosition()).toBeNull()
+      })
     })
 
     it('does not re-sync when the Clerk user object changes but the id does not', async () => {

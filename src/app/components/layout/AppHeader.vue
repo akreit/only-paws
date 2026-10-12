@@ -13,6 +13,9 @@
           <NuxtLink
             to="/map"
             class="font-medium text-gray-700 transition-colors hover:text-blue-600"
+            @mouseenter="preloadMap"
+            @focus="preloadMap"
+            @touchstart.passive="preloadMap"
           >
             Explore Map
           </NuxtLink>
@@ -85,6 +88,7 @@
             <NuxtLink
               to="/map"
               class="px-2 py-1 font-medium text-gray-700 hover:text-blue-600"
+              @touchstart.passive="preloadMap"
               @click="mobileMenuOpen = false"
             >
               Explore Map
@@ -111,6 +115,7 @@ import Button from '~/components/ui/Button.vue'
 const { isSignedIn } = useAuth()
 const { user } = useUser()
 const mobileMenuOpen = ref(false)
+const { preloadMap } = useMap()
 </script>
 
 <style scoped>

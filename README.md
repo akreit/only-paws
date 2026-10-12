@@ -180,12 +180,13 @@ Deployments only come from the CI workflow (`.github/workflows/ci.yml`), never f
 - **Git deployments are off:** `vercel.json` sets `git.deploymentEnabled: false`, so pushes and PRs don't build on Vercel. Feature branches only run CI (lint, typecheck, unit tests, build). The repo stays connected to the Vercel project.
 - **`main` → production:** the `deploy` job runs `vercel --prod` after `build` passes on a push to `main`. Concurrency group `deploy-production`, never cancelled midway.
 - **`develop` → staging:** the `deploy-staging` job makes a Vercel **preview** deployment (never `--prod`) on a push to `develop` and aliases it to `only-paws-staging.vercel.app`. The alias isn't claimed yet; the first `develop` deploy claims it.
-- **What each job needs:** both jobs need the repository **variables** `VERCEL_ORG_ID` (team) and `VERCEL_PROJECT_ID` (project), plus the **secret** `VERCEL_TOKEN`. The action is pinned to a commit SHA and the Vercel CLI to an exact version.
+- **What each job needs:** both jobs need the repository **variables** `VERCEL_ORG_ID` (team) and `VERCEL_PROJECT_ID` (project), plus the **secret** `VERCEL_TOKEN`. `deploy-staging` also needs the variable `PRODUCTION_DATABASE_FINGERPRINT` (see below). The action is pinned to a commit SHA and the Vercel CLI to an exact version.
 
 **Staging caveats (it's a Vercel preview deployment):**
 
 - **Database:** previews use the Neon integration's preview branching, not the production database. Each preview deployment gets a Neon branch named after its Git branch (`preview/develop` for staging, branched from production's default branch with a copy of production data at creation time). It's injected as `DATABASE_URL`/`DATABASE_URL_UNPOOLED` at deploy time only. A Neon branch-limit hit fails the deploy with "Resource provisioning failed".
-- **Migrations don't run on staging:** `scripts/migrate-deploy.mjs` only migrates when `VERCEL_ENV=production`. Schema changes on `develop` aren't applied to `preview/develop` automatically; apply them by hand or reset the branch.
+- **Migrations run on staging, guarded:** `deploy-staging` passes `--build-env MIGRATE_STAGING=1`, so `scripts/migrate-deploy.mjs` runs `prisma migrate deploy` in the staging build too, against the deployment's `DATABASE_URL_UNPOOLED`/`DATABASE_URL` (the `preview/develop` branch). Before migrating, it compares a fingerprint (SHA-256 of the database host, ignoring Neon's `-pooler` suffix) of both URLs with `PRODUCTION_DATABASE_FINGERPRINT`. It **fails the staging build** if the fingerprint is missing or either URL is the production database, so a staging build can never migrate production. Other previews never migrate.
+- **One-time setup:** the next production build logs `[migrate-deploy] Production database fingerprint: <hex>` (not secret; it shows in the `Deploy to Vercel` job log). Save it as the repository **variable** `PRODUCTION_DATABASE_FINGERPRINT`. Until it's set, `deploy-staging` fails before deploying.
 - **Auth:** Preview and Production share the same Clerk keys, which come from a Clerk **development** instance (`pk_test_…`), so `*.vercel.app` hosts such as staging work. If production moves to a live instance (`pk_live_…`), give Preview its own development keys or add the staging domain in Clerk.
 - **Access:** Vercel Authentication protects previews (and production deployment URLs), so staging needs a Vercel login or a bypass.
 
@@ -193,7 +194,7 @@ Deployments only come from the CI workflow (`.github/workflows/ci.yml`), never f
 
 1. Create PostgreSQL database on Render
 2. Update `DATABASE_URL` in Vercel
-3. Migrations are applied automatically by `npm run build` on **production** Vercel builds only (`VERCEL_ENV=production`, via `scripts/migrate-deploy.mjs`, using `DATABASE_URL_UNPOOLED` if set). Preview/staging builds do not migrate (they run on Neon preview branches; see the caveats above).
+3. Migrations are applied automatically by `npm run build` on **production** Vercel builds (`VERCEL_ENV=production`, via `scripts/migrate-deploy.mjs`, using `DATABASE_URL_UNPOOLED` if set). The staging build (`develop`) also migrates its Neon preview branch behind a guard that refuses the production database; other previews never migrate (see the caveats above).
 
 ### Database migrations
 

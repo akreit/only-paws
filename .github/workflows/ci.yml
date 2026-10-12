@@ -170,6 +170,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
 
+      # The staging build migrates its Neon branch; migrate-deploy.mjs refuses (and fails the
+      # build) if the database is production. Fail here first if the fingerprint isn't set.
+      - name: Require production DB fingerprint
+        env:
+          PRODUCTION_DATABASE_FINGERPRINT: ${{ vars.PRODUCTION_DATABASE_FINGERPRINT }}
+        run: |
+          if ! [[ "$PRODUCTION_DATABASE_FINGERPRINT" =~ ^[0-9a-f]{64}$ ]]; then
+            echo "::error::Set the repository variable PRODUCTION_DATABASE_FINGERPRINT (see README > Deployment)."
+            exit 1
+          fi
+
       - name: Deploy preview to Vercel
         uses: amondnet/vercel-action@de09aeac2ace6599ec9b11ef87558759a496bac4 # v42.3.0
         with:
@@ -179,6 +190,9 @@ jobs:
           vercel-project-id: ${{ vars.VERCEL_PROJECT_ID }}
           vercel-version: '50.44.0'
           target: preview
-          vercel-args: '--yes'
+          vercel-args: >-
+            --yes
+            --build-env MIGRATE_STAGING=1
+            --build-env PRODUCTION_DATABASE_FINGERPRINT=${{ vars.PRODUCTION_DATABASE_FINGERPRINT }}
           github-comment: false
           alias-domains: only-paws-staging.vercel.app

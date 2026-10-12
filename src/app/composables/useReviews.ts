@@ -1,4 +1,4 @@
-import type { CreateReviewInput, Review } from '~/types'
+import type { CreateReviewInput, Review, UpdateReviewInput } from '~/types'
 import { markLocationsChanged } from '~/utils/locations-cache'
 
 export function useReviews() {
@@ -19,6 +19,26 @@ export function useReviews() {
       return review
     } catch (error) {
       notifications.error('Failed to submit review')
+      throw error
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function updateReview(id: string, input: UpdateReviewInput) {
+    loading.value = true
+
+    try {
+      const review = await $fetch<Review>(`/api/reviews/${id}`, {
+        method: 'PATCH',
+        body: input,
+      })
+
+      markLocationsChanged()
+      notifications.success('Review updated successfully!')
+      return review
+    } catch (error) {
+      notifications.error('Failed to update review')
       throw error
     } finally {
       loading.value = false
@@ -46,6 +66,7 @@ export function useReviews() {
   return {
     loading,
     createReview,
+    updateReview,
     deleteReview,
   }
 }

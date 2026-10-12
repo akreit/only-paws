@@ -17,8 +17,8 @@ export interface CreateReviewInput {
   locationId: string
 }
 
+/** Fields editable through PATCH /api/reviews/[id]; an empty comment is stored as null. */
 export interface UpdateReviewInput {
-  id: string
   rating?: number
-  comment?: string
+  comment?: string | null
 }

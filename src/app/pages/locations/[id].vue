@@ -47,10 +47,20 @@
           <LocationInfo :location="location" />
           <DogFeatures :location="location" />
         </div>
-        <div>
+        <div class="space-y-3">
           <FavoriteButton v-if="isSignedIn" size="lg" show-label :location-id="location.id" />
+          <Button
+            v-if="isSignedIn"
+            variant="outline"
+            data-testid="edit-location"
+            @click="editing = true"
+          >
+            Edit
+          </Button>
         </div>
       </div>
+
+      <EditLocationModal v-if="isSignedIn" v-model="editing" :location="location" />
 
       <!-- Reviews Section -->
       <div class="rounded-lg bg-white p-6 shadow-md">
@@ -68,6 +78,7 @@
               :key="review.id"
               :review="review"
               @delete="refreshLocation"
+              @updated="refreshLocation"
             />
           </div>
           <div v-else class="py-8 text-center text-gray-500">
@@ -105,6 +116,7 @@
 
 <script setup lang="ts">
 import DogFeatures from '~/components/location/DogFeatures.vue'
+import EditLocationModal from '~/components/location/EditLocationModal.vue'
 import FavoriteButton from '~/components/location/FavoriteButton.vue'
 import ReviewForm from '~/components/location/ReviewForm.vue'
 import Button from '~/components/ui/Button.vue'
@@ -115,6 +127,8 @@ import LoadingSpinner from '~/components/ui/LoadingSpinner.vue'
 const route = useRoute()
 const { isSignedIn } = useAuth()
 const { fetchLocation, selectedLocation: location, error } = useLocations()
+
+const editing = ref(false)
 
 const locationId = computed(() => route.params.id as string)
 

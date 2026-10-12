@@ -91,10 +91,13 @@ export function stagingGuardError(env) {
   const prod = readFingerprint(env.PRODUCTION_DATABASE_FINGERPRINT)
   const staging = readFingerprint(env.STAGING_DATABASE_FINGERPRINT)
   if (!prod) return `PRODUCTION_DATABASE_FINGERPRINT is missing or invalid (${seenText}).`
-  if (!staging) return `STAGING_DATABASE_FINGERPRINT is missing or invalid (${seenText}).`
-  if (staging === prod) return 'STAGING_DATABASE_FINGERPRINT equals the production fingerprint.'
+  // Before the staging checks, so a setup ("pending") run that sees prod says so directly
   if (seen.some((f) => f === prod))
     return `A database URL is the PRODUCTION database (${seenText}).`
+  if (!staging) {
+    return `STAGING_DATABASE_FINGERPRINT is missing or invalid (${seenText}); save the seen fingerprint as STAGING_DATABASE_FINGERPRINT.`
+  }
+  if (staging === prod) return 'STAGING_DATABASE_FINGERPRINT equals the production fingerprint.'
   if (seen.some((f) => f !== staging)) {
     return `Database is not the staging branch (${seenText}; expected ${staging}).`
   }

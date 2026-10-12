@@ -184,6 +184,23 @@ describe('stagingGuardError', () => {
       })
     ).toMatch(/equals the production/)
   })
+  it('reports production before an invalid staging fingerprint (pending setup run)', () => {
+    const prodSeen = stagingGuardError({
+      ...base,
+      PRODUCTION_DATABASE_FINGERPRINT: PROD_FP,
+      STAGING_DATABASE_FINGERPRINT: 'pending',
+      DATABASE_URL: PROD_URL,
+    })
+    expect(prodSeen).toMatch(/is the PRODUCTION database/)
+    const pending = stagingGuardError({
+      ...base,
+      PRODUCTION_DATABASE_FINGERPRINT: PROD_FP,
+      STAGING_DATABASE_FINGERPRINT: 'pending',
+      DATABASE_URL: STAGING_URL,
+    })
+    expect(pending).toContain(STAGING_FP)
+    expect(pending).toMatch(/save the seen fingerprint as STAGING_DATABASE_FINGERPRINT\.$/)
+  })
   it('refuses the production database (second layer)', () => {
     expect(stagingGuardError({ ...base, ...FPS, DATABASE_URL: PROD_URL })).toMatch(/PRODUCTION/)
     expect(

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { PUBLIC_USER_SELECT } from '#server/utils/user'
+import { PUBLIC_USER_SELECT } from '#server/utils/public-user'
 import { setupServerMocks, createMockEvent } from '../../../../helpers/server'
 
 const mocks = setupServerMocks()

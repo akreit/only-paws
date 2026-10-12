@@ -1,4 +1,4 @@
-import { PUBLIC_USER_SELECT } from './user'
+import { PUBLIC_USER_SELECT } from './public-user'
 
 /** Include used wherever locations are listed (map, favorites, profile). */
 export const LOCATION_LIST_INCLUDE = {

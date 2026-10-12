@@ -29,7 +29,7 @@ export default defineEventHandler(async (event) => {
   const locationsWithRating = dbUser.locations.map(withAverageRating)
 
   return {
-    user: toOwnProfile(dbUser),
+    user: toCurrentUser(dbUser),
     locations: locationsWithRating,
     reviews: dbUser.reviews,
   }

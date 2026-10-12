@@ -1,6 +1,7 @@
 import { vi } from 'vitest'
 import { withDatabaseErrorHandling } from '../../src/server/utils/database'
-import { PUBLIC_USER_SELECT, requireDbUser, toOwnProfile } from '../../src/server/utils/user'
+import { PUBLIC_USER_SELECT } from '../../src/server/utils/public-user'
+import { requireDbUser, toCurrentUser } from '../../src/server/utils/user'
 import {
   LOCATION_DETAIL_INCLUDE,
   LOCATION_LIST_INCLUDE,
@@ -61,7 +62,7 @@ export function setupServerMocks() {
   // Real implementation, driven by the mocked requireAuth/prisma
   vi.stubGlobal('requireDbUser', requireDbUser)
   vi.stubGlobal('PUBLIC_USER_SELECT', PUBLIC_USER_SELECT)
-  vi.stubGlobal('toOwnProfile', toOwnProfile)
+  vi.stubGlobal('toCurrentUser', toCurrentUser)
   vi.stubGlobal('LOCATION_LIST_INCLUDE', LOCATION_LIST_INCLUDE)
   vi.stubGlobal('LOCATION_DETAIL_INCLUDE', LOCATION_DETAIL_INCLUDE)
   vi.stubGlobal('withAverageRating', withAverageRating)

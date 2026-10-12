@@ -1,6 +1,5 @@
 export const PROFILE_PHOTO_MAX_BYTES = 5 * 1024 * 1024
 export const PROFILE_PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const
-const PROFILE_PHOTO_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp']
 
 export const PROFILE_PHOTO_ACCEPT = PROFILE_PHOTO_TYPES.join(',')
 
@@ -13,51 +12,6 @@ export function validateProfilePhotoFile(file: { type: string; size: number }): 
     return 'The image must be 5 MB or smaller'
   }
   return null
-}
-
-/**
- * True when `url` is an https image delivered from our Cloudinary cloud, points at `publicId`
- * and has an allowed image format. Uploads go straight from the browser to Cloudinary, so this
- * is the server-side check that a client can't store an arbitrary URL.
- */
-export function isValidProfilePhoto(url: unknown, publicId: unknown, cloudName: unknown): boolean {
-  if (
-    typeof url !== 'string' ||
-    typeof publicId !== 'string' ||
-    typeof cloudName !== 'string' ||
-    !cloudName ||
-    !publicId ||
-    publicId.length > 255 ||
-    url.length > 2048
-  ) {
-    return false
-  }
-
-  let parsed: URL
-  try {
-    parsed = new URL(url)
-  } catch {
-    return false
-  }
-  if (
-    parsed.protocol !== 'https:' ||
-    parsed.hostname !== 'res.cloudinary.com' ||
-    parsed.username ||
-    parsed.password ||
-    parsed.port
-  ) {
-    return false
-  }
-
-  const prefix = `/${cloudName}/image/upload/`
-  if (!parsed.pathname.startsWith(prefix)) return false
-
-  const extension = parsed.pathname.split('.').pop()?.toLowerCase() ?? ''
-  if (!PROFILE_PHOTO_EXTENSIONS.includes(extension)) return false
-
-  // After the prefix: optional transformations / version, then <publicId>.<ext>
-  const rest = decodeURIComponent(parsed.pathname.slice(prefix.length))
-  return rest.endsWith(`/${publicId}.${extension}`) || rest === `${publicId}.${extension}`
 }
 
 /** Inserts a square face-aware crop transform into a Cloudinary delivery URL. */

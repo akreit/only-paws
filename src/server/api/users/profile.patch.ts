@@ -24,5 +24,5 @@ export default defineEventHandler(async (event) => {
   })
 
   // Same shape as the `user` object returned by GET /api/users/profile
-  return toOwnProfile(dbUser)
+  return toCurrentUser(dbUser)
 })

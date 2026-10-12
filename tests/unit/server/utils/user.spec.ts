@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { setupServerMocks, createMockEvent } from '../../../helpers/server'
-import { PUBLIC_USER_SELECT, requireDbUser } from '#server/utils/user'
+import { PUBLIC_USER_SELECT } from '#server/utils/public-user'
+import { requireDbUser } from '#server/utils/user'
 
 const mocks = setupServerMocks()
 

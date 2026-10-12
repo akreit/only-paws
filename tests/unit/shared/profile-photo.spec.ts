@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest'
 import {
   PROFILE_PHOTO_MAX_BYTES,
   getAvatarUrl,
-  isValidProfilePhoto,
   squareCropUrl,
   validateProfilePhotoFile,
 } from '#shared/utils/profile-photo'
@@ -21,35 +20,6 @@ describe('validateProfilePhotoFile', () => {
     expect(
       validateProfilePhotoFile({ type: 'image/png', size: PROFILE_PHOTO_MAX_BYTES + 1 })
     ).toMatch(/5 MB/)
-  })
-})
-
-describe('isValidProfilePhoto', () => {
-  it('accepts an image on our cloud', () => {
-    expect(isValidProfilePhoto(URL_OK, 'avatars/abc', 'demo')).toBe(true)
-    expect(
-      isValidProfilePhoto('https://res.cloudinary.com/demo/image/upload/abc.webp', 'abc', 'demo')
-    ).toBe(true)
-  })
-
-  it.each([
-    ['other cloud', URL_OK.replace('/demo/', '/evil/'), 'avatars/abc'],
-    ['http', URL_OK.replace('https', 'http'), 'avatars/abc'],
-    ['other host', 'https://evil.com/demo/image/upload/v1/avatars/abc.jpg', 'avatars/abc'],
-    ['lookalike host', 'https://res.cloudinary.com.evil.com/demo/image/upload/abc.jpg', 'abc'],
-    ['credentials', 'https://x@res.cloudinary.com/demo/image/upload/abc.jpg', 'abc'],
-    ['video', URL_OK.replace('/image/', '/video/'), 'avatars/abc'],
-    ['gif', URL_OK.replace('.jpg', '.gif'), 'avatars/abc'],
-    ['mismatched id', URL_OK, 'other/id'],
-    ['not a url', 'nope', 'abc'],
-    ['empty id', URL_OK, ''],
-    ['non-string', 5, 'abc'],
-  ])('rejects %s', (_label, url, publicId) => {
-    expect(isValidProfilePhoto(url, publicId, 'demo')).toBe(false)
-  })
-
-  it('rejects when no cloud is configured', () => {
-    expect(isValidProfilePhoto(URL_OK, 'avatars/abc', undefined)).toBe(false)
   })
 })
 

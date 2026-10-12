@@ -49,9 +49,10 @@ export function useProfile() {
   }
 
   // Same unsigned-preset upload as usePhotos
-  async function uploadToCloudinary(file: File): Promise<CloudinaryUploadResult> {
+  async function uploadToCloudinary(file: File, folder: string): Promise<CloudinaryUploadResult> {
     const formData = new FormData()
     formData.append('file', file)
+    formData.append('folder', folder)
     formData.append('upload_preset', config.public.uploadPreset as string)
 
     const response = await fetch(
@@ -64,6 +65,7 @@ export function useProfile() {
     return {
       url: data.secure_url,
       publicId: data.public_id,
+      format: data.format,
       width: data.width,
       height: data.height,
     }
@@ -78,10 +80,12 @@ export function useProfile() {
 
     photoSaving.value = true
     try {
-      const { url, publicId } = await uploadToCloudinary(file)
+      const userId = userStore.user?.id
+      if (!userId) throw new Error('Profile not loaded')
+      const { publicId, format } = await uploadToCloudinary(file, `only-paws/users/${userId}`)
       const user = await $fetch<User>('/api/users/profile-photo', {
         method: 'PUT',
-        body: { url, publicId },
+        body: { publicId, format },
       })
       userStore.setUser(user)
       notifications.success('Profile photo updated!')

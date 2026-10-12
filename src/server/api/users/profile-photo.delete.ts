@@ -7,5 +7,5 @@ export default defineEventHandler(async (event) => {
     data: { profilePhotoUrl: null, profilePhotoPublicId: null },
   })
 
-  return toOwnProfile(dbUser)
+  return toCurrentUser(dbUser)
 })

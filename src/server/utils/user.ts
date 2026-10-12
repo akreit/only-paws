@@ -20,19 +20,7 @@ export async function requireDbUser(event: H3Event) {
   )
 }
 
-/**
- * The only user fields that may appear on public data (review authors, photo uploaders,
- * commenters). Always use this instead of `include: { author: true }`, which would leak
- * `email` and `clerkUserId`.
- */
-export const PUBLIC_USER_SELECT = {
-  id: true,
-  username: true,
-  avatarUrl: true,
-  profilePhotoUrl: true,
-} as const
-
-type OwnProfileSource = {
+type CurrentUserSource = {
   id: string
   clerkUserId: string
   email: string | null
@@ -52,7 +40,7 @@ type OwnProfileSource = {
 }
 
 /** The signed-in user's own profile (includes email/clerkUserId, so never return it publicly). */
-export function toOwnProfile(user: OwnProfileSource) {
+export function toCurrentUser(user: CurrentUserSource) {
   return {
     id: user.id,
     clerkUserId: user.clerkUserId,

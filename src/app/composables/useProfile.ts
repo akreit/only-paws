@@ -1,4 +1,4 @@
-import type { Location, ProfileUpdateInput, Review, User } from '~/types'
+import type { CloudinaryUploadResult, Location, ProfileUpdateInput, Review, User } from '~/types'
 
 export interface ProfileResponse {
   user: User
@@ -7,10 +7,12 @@ export interface ProfileResponse {
 }
 
 export function useProfile() {
+  const config = useRuntimeConfig()
   const userStore = useUserStore()
   const notifications = useNotificationsStore()
   const loading = ref(false)
   const saving = ref(false)
+  const photoSaving = ref(false)
 
   async function fetchProfile() {
     loading.value = true
@@ -46,9 +48,73 @@ export function useProfile() {
     }
   }
 
+  // Same unsigned-preset upload as usePhotos
+  async function uploadToCloudinary(file: File): Promise<CloudinaryUploadResult> {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('upload_preset', config.public.uploadPreset as string)
+
+    const response = await fetch(
+      `https://api.cloudinary.com/v1_1/${config.public.cloudinaryCloudName}/image/upload`,
+      { method: 'POST', body: formData }
+    )
+    if (!response.ok) throw new Error('Upload failed')
+
+    const data = await response.json()
+    return {
+      url: data.secure_url,
+      publicId: data.public_id,
+      width: data.width,
+      height: data.height,
+    }
+  }
+
+  async function uploadProfilePhoto(file: File) {
+    const problem = validateProfilePhotoFile(file)
+    if (problem) {
+      notifications.error(problem)
+      throw new Error(problem)
+    }
+
+    photoSaving.value = true
+    try {
+      const { url, publicId } = await uploadToCloudinary(file)
+      const user = await $fetch<User>('/api/users/profile-photo', {
+        method: 'PUT',
+        body: { url, publicId },
+      })
+      userStore.setUser(user)
+      notifications.success('Profile photo updated!')
+      return user
+    } catch (error) {
+      notifications.error('Failed to update profile photo')
+      throw error
+    } finally {
+      photoSaving.value = false
+    }
+  }
+
+  async function removeProfilePhoto() {
+    photoSaving.value = true
+    try {
+      const user = await $fetch<User>('/api/users/profile-photo', { method: 'DELETE' })
+      userStore.setUser(user)
+      notifications.success('Profile photo removed')
+      return user
+    } catch (error) {
+      notifications.error('Failed to remove profile photo')
+      throw error
+    } finally {
+      photoSaving.value = false
+    }
+  }
+
   return {
     loading,
     saving,
+    photoSaving,
+    uploadProfilePhoto,
+    removeProfilePhoto,
     profile: computed(() => userStore.user),
     fetchProfile,
     saveProfile,

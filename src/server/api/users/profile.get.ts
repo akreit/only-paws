@@ -29,21 +29,7 @@ export default defineEventHandler(async (event) => {
   const locationsWithRating = dbUser.locations.map(withAverageRating)
 
   return {
-    user: {
-      id: dbUser.id,
-      clerkUserId: dbUser.clerkUserId,
-      email: dbUser.email,
-      username: dbUser.username,
-      bio: dbUser.bio,
-      avatarUrl: dbUser.avatarUrl,
-      homeCity: dbUser.homeCity,
-      hasDog: dbUser.hasDog,
-      dogName: dbUser.dogName,
-      dogBreed: dbUser.dogBreed,
-      lookingFor: dbUser.lookingFor,
-      createdAt: dbUser.createdAt,
-      updatedAt: dbUser.updatedAt,
-    },
+    user: toOwnProfile(dbUser),
     locations: locationsWithRating,
     reviews: dbUser.reviews,
   }

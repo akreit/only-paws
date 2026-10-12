@@ -1,3 +1,4 @@
+import { parseInstagramHandle } from '../../../shared/utils/instagram'
 import { LOOKING_FOR_VALUES } from '../types/user'
 import type { LookingFor, ProfileUpdateInput } from '../types/user'
 
@@ -57,6 +58,19 @@ export function validateProfileUpdate(input: unknown): ProfileValidationResult {
       continue
     }
     data[field] = trimmed === '' ? null : trimmed
+  }
+
+  if (body.instagramHandle !== undefined) {
+    const result = parseInstagramHandle(body.instagramHandle)
+    if (result.ok) {
+      data.instagramHandle = result.value
+    } else {
+      errors.push({
+        field: 'instagramHandle',
+        message:
+          'Instagram handle may only contain letters, numbers, "." and "_" (max 30, no leading/trailing or double dots)',
+      })
+    }
   }
 
   if (body.hasDog !== undefined) {

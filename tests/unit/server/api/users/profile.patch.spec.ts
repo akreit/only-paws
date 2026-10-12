@@ -111,4 +111,31 @@ describe('PATCH /api/users/profile', () => {
       data: { homeCity: 'Berlin' },
     })
   })
+
+  it('normalises the Instagram handle and allows clearing it', async () => {
+    mocks.prisma.user.findUnique.mockResolvedValue({ id: 'user-1', hasDog: false })
+    mocks.prisma.user.update.mockResolvedValue(createMockUser())
+
+    mocks.readBody.mockResolvedValue({ instagramHandle: ' @Rex_Dog ' })
+    await handler(createMockEvent())
+    expect(mocks.prisma.user.update).toHaveBeenLastCalledWith({
+      where: { id: 'user-1' },
+      data: { instagramHandle: 'rex_dog' },
+    })
+
+    mocks.readBody.mockResolvedValue({ instagramHandle: null })
+    await handler(createMockEvent())
+    expect(mocks.prisma.user.update).toHaveBeenLastCalledWith({
+      where: { id: 'user-1' },
+      data: { instagramHandle: null },
+    })
+  })
+
+  it('returns 400 for an invalid Instagram handle', async () => {
+    mocks.readBody.mockResolvedValue({ instagramHandle: 'not valid!' })
+
+    await expect(handler(createMockEvent())).rejects.toThrow('Instagram')
+    expect(mocks.createError).toHaveBeenCalledWith(expect.objectContaining({ statusCode: 400 }))
+    expect(mocks.prisma.user.update).not.toHaveBeenCalled()
+  })
 })

@@ -3,9 +3,9 @@
     <div class="mb-3 flex items-start justify-between">
       <div class="flex items-start gap-3">
         <img
-          v-if="review.author?.avatarUrl"
-          :src="review.author.avatarUrl"
-          :alt="review.author.username || 'User'"
+          v-if="avatarSrc"
+          :src="avatarSrc"
+          :alt="review.author?.username || 'User'"
           class="h-10 w-10 rounded-full"
         />
         <div v-else class="flex h-10 w-10 items-center justify-center rounded-full bg-gray-200">
@@ -81,6 +81,7 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+const avatarSrc = computed(() => getAvatarUrl(props.review.author, 80))
 const emit = defineEmits<{
   delete: []
   updated: [review: Review]

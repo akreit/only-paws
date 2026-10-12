@@ -1,3 +1,5 @@
+import { PUBLIC_USER_SELECT } from './user'
+
 /** Include used wherever locations are listed (map, favorites, profile). */
 export const LOCATION_LIST_INCLUDE = {
   photos: {
@@ -18,13 +20,13 @@ export const LOCATION_LIST_INCLUDE = {
 export const LOCATION_DETAIL_INCLUDE = {
   photos: {
     include: {
-      uploader: true,
+      uploader: { select: PUBLIC_USER_SELECT },
     },
     orderBy: { createdAt: 'desc' },
   },
   reviews: {
     include: {
-      author: true,
+      author: { select: PUBLIC_USER_SELECT },
     },
     orderBy: { createdAt: 'desc' },
   },

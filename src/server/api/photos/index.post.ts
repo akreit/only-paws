@@ -22,7 +22,7 @@ export default defineEventHandler(async (event) => {
       uploaderId: dbUser.id,
     },
     include: {
-      uploader: true,
+      uploader: { select: PUBLIC_USER_SELECT },
     },
   })
 })

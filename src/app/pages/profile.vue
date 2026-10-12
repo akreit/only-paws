@@ -30,10 +30,10 @@
       <div class="rounded-lg bg-white p-6 shadow-md">
         <div class="flex items-center gap-6">
           <img
-            v-if="user?.imageUrl"
-            :src="user.imageUrl"
-            :alt="user.username || 'User'"
-            class="h-24 w-24 rounded-full border-4 border-gray-200"
+            v-if="avatarSrc"
+            :src="avatarSrc"
+            :alt="user?.username || 'User'"
+            class="h-24 w-24 rounded-full border-4 border-gray-200 object-cover"
           />
           <div
             v-else
@@ -55,6 +55,35 @@
             <p v-if="user?.primaryEmailAddress?.emailAddress" class="mt-1 text-gray-600">
               {{ user.primaryEmailAddress.emailAddress }}
             </p>
+            <div class="mt-3 flex flex-wrap items-center gap-2">
+              <input
+                ref="photoInput"
+                type="file"
+                :accept="PROFILE_PHOTO_ACCEPT"
+                class="hidden"
+                data-testid="profile-photo-input"
+                @change="handlePhotoSelected"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                :loading="photoSaving"
+                @click="photoInput?.click()"
+              >
+                {{ profile?.profilePhotoUrl ? 'Replace photo' : 'Upload photo' }}
+              </Button>
+              <Button
+                v-if="profile?.profilePhotoUrl"
+                variant="ghost"
+                size="sm"
+                :disabled="photoSaving"
+                @click="removeProfilePhoto"
+              >
+                Remove photo
+              </Button>
+            </div>
+            <p v-if="photoError" class="mt-1 text-sm text-red-600">{{ photoError }}</p>
+            <p v-else class="mt-1 text-xs text-gray-500">JPEG, PNG or WebP, up to 5 MB.</p>
           </div>
         </div>
       </div>
@@ -87,6 +116,16 @@
               {{ bioCount }}/{{ PROFILE_LIMITS.bio }}
             </p>
             <p v-if="errors.bio" class="mt-1 text-sm text-red-600">{{ errors.bio }}</p>
+          </div>
+
+          <div>
+            <Input
+              id="profile-instagram"
+              v-model="form.instagramHandle"
+              label="Instagram"
+              placeholder="@yourdog"
+              :error="errors.instagramHandle"
+            />
           </div>
 
           <Input
@@ -148,6 +187,16 @@
 
         <div v-else-if="hasAboutInfo" class="space-y-3">
           <p v-if="profile?.bio" class="whitespace-pre-line text-gray-700">{{ profile.bio }}</p>
+          <p v-if="profile?.instagramHandle" class="text-gray-600">
+            📷
+            <a
+              :href="instagramProfileUrl(profile.instagramHandle)"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-blue-600 hover:underline"
+              >@{{ profile.instagramHandle }}</a
+            >
+          </p>
           <p v-if="profile?.homeCity" class="text-gray-600">📍 {{ profile.homeCity }}</p>
           <p v-if="profile?.hasDog" class="text-gray-600">
             🐶
@@ -345,7 +394,40 @@ import LoadingSpinner from '~/components/ui/LoadingSpinner.vue'
 const { isSignedIn, isLoaded } = useAuth()
 const { user } = useUser()
 const { ensureFavorites, favoriteLocations } = useFavorites()
-const { profile, saving, fetchProfile, saveProfile } = useProfile()
+const {
+  profile,
+  saving,
+  photoSaving,
+  fetchProfile,
+  saveProfile,
+  uploadProfilePhoto,
+  removeProfilePhoto,
+} = useProfile()
+
+const photoInput = ref<HTMLInputElement | null>(null)
+const photoError = ref('')
+const avatarSrc = computed(() =>
+  getAvatarUrl(
+    { profilePhotoUrl: profile.value?.profilePhotoUrl, avatarUrl: user.value?.imageUrl },
+    200
+  )
+)
+
+async function handlePhotoSelected(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) return
+
+  photoError.value = validateProfilePhotoFile(file) ?? ''
+  if (photoError.value) return
+
+  try {
+    await uploadProfilePhoto(file)
+  } catch {
+    // useProfile already notified the user
+  }
+}
 
 const loading = ref(true)
 const activeTab = ref('locations')
@@ -391,6 +473,7 @@ const editing = ref(false)
 const errors = ref<Record<string, string>>({})
 const form = reactive({
   bio: '',
+  instagramHandle: '',
   homeCity: '',
   hasDog: false,
   dogName: '',
@@ -401,12 +484,13 @@ const form = reactive({
 const bioCount = computed(() => countCharacters(form.bio.trim()))
 const hasAboutInfo = computed(() => {
   const p = profile.value
-  return !!(p?.bio || p?.homeCity || p?.hasDog || p?.lookingFor?.length)
+  return !!(p?.bio || p?.instagramHandle || p?.homeCity || p?.hasDog || p?.lookingFor?.length)
 })
 
 function startEditing() {
   const p = profile.value
   form.bio = p?.bio ?? ''
+  form.instagramHandle = p?.instagramHandle ?? ''
   form.homeCity = p?.homeCity ?? ''
   form.hasDog = p?.hasDog ?? false
   form.dogName = p?.dogName ?? ''

@@ -86,9 +86,9 @@
         <div class="flex items-center justify-between text-sm text-gray-500">
           <div class="flex items-center gap-2">
             <img
-              v-if="selectedPhoto.uploader?.avatarUrl"
-              :src="selectedPhoto.uploader.avatarUrl"
-              :alt="selectedPhoto.uploader.username || 'User'"
+              v-if="uploaderAvatar"
+              :src="uploaderAvatar"
+              :alt="selectedPhoto.uploader?.username || 'User'"
               class="h-6 w-6 rounded-full"
             />
             <span>{{ selectedPhoto.uploader?.username || 'Anonymous' }}</span>
@@ -110,7 +110,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import type { Photo } from '~/types'
 import { formatRelativeTime } from '~/utils/formatters'
 import { MAX_PHOTO_SIZE_MB } from '~/utils/constants'
@@ -136,6 +136,7 @@ const notifications = useNotificationsStore()
 const fileInput = ref<HTMLInputElement>()
 const showLightbox = ref(false)
 const selectedPhoto = ref<Photo | null>(null)
+const uploaderAvatar = computed(() => getAvatarUrl(selectedPhoto.value?.uploader, 48))
 
 function openLightbox(photo: Photo) {
   selectedPhoto.value = photo

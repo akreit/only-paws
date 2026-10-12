@@ -88,3 +88,13 @@ resource "vercel_project_environment_variable" "cloudinary_upload_preset" {
   value      = var.cloudinary_upload_preset
   target     = local.env_targets
 }
+
+# Optional dedicated unsigned preset for profile photos (#53); the app falls back to
+# CLOUDINARY_UPLOAD_PRESET when unset, so the variable is only created when non-empty.
+resource "vercel_project_environment_variable" "cloudinary_profile_upload_preset" {
+  count      = var.cloudinary_profile_upload_preset == "" ? 0 : 1
+  project_id = vercel_project.only_paws.id
+  key        = "CLOUDINARY_PROFILE_UPLOAD_PRESET"
+  value      = var.cloudinary_profile_upload_preset
+  target     = local.env_targets
+}

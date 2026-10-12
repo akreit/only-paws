@@ -23,6 +23,10 @@ export interface User {
   dogName?: string | null
   dogBreed?: string | null
   lookingFor?: LookingFor[]
+  instagramHandle?: string | null
+  profilePhotoUrl?: string | null
+  /** Only present on the signed-in user's own profile */
+  profilePhotoPublicId?: string | null
   /** Opted in to "Meet people"; coordinates are never sent to the client */
   discoverable?: boolean
   hasApproxLocation?: boolean
@@ -32,7 +36,7 @@ export interface User {
 }
 
 /** The minimal subset of a user that is safe to show to others (author, uploader). */
-export type PublicUser = Pick<User, 'id' | 'username' | 'avatarUrl'>
+export type PublicUser = Pick<User, 'id' | 'username' | 'avatarUrl' | 'profilePhotoUrl'>
 
 /** Profile fields shown on "Meet people" cards (discoverable users only). */
 export type PeopleCardUser = PublicUser &
@@ -57,4 +61,5 @@ export interface ProfileUpdateInput {
   dogName?: string | null
   dogBreed?: string | null
   lookingFor?: LookingFor[]
+  instagramHandle?: string | null
 }

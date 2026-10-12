@@ -19,3 +19,52 @@ export async function requireDbUser(event: H3Event) {
       }))
   )
 }
+
+type CurrentUserSource = {
+  id: string
+  clerkUserId: string
+  email: string | null
+  username: string | null
+  bio: string | null
+  avatarUrl: string | null
+  homeCity: string | null
+  hasDog: boolean
+  dogName: string | null
+  dogBreed: string | null
+  lookingFor: string[]
+  createdAt: Date
+  updatedAt: Date
+  instagramHandle: string | null
+  profilePhotoUrl: string | null
+  profilePhotoPublicId: string | null
+  discoverable: boolean
+  approxLatitude: number | null
+  approxLongitude: number | null
+  approxLocationUpdatedAt: Date | null
+}
+
+/** The signed-in user's own profile (includes email/clerkUserId, so never return it publicly). */
+export function toCurrentUser(user: CurrentUserSource) {
+  return {
+    id: user.id,
+    clerkUserId: user.clerkUserId,
+    email: user.email,
+    username: user.username,
+    bio: user.bio,
+    avatarUrl: user.avatarUrl,
+    homeCity: user.homeCity,
+    hasDog: user.hasDog,
+    dogName: user.dogName,
+    dogBreed: user.dogBreed,
+    lookingFor: user.lookingFor,
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt,
+    instagramHandle: user.instagramHandle,
+    profilePhotoUrl: user.profilePhotoUrl,
+    profilePhotoPublicId: user.profilePhotoPublicId,
+    // Meet people: whether a location is set, never the coordinates (or jitter)
+    discoverable: user.discoverable,
+    hasApproxLocation: user.approxLatitude != null && user.approxLongitude != null,
+    approxLocationUpdatedAt: user.approxLocationUpdatedAt,
+  }
+}

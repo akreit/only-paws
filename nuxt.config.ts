@@ -32,6 +32,8 @@ export default defineNuxtConfig({
 
       cloudinaryCloudName: process.env.CLOUDINARY_CLOUD_NAME,
       uploadPreset: process.env.CLOUDINARY_UPLOAD_PRESET || 'default',
+      // Optional dedicated unsigned preset for profile photos; falls back to uploadPreset.
+      profileUploadPreset: process.env.CLOUDINARY_PROFILE_UPLOAD_PRESET || '',
     },
     private: {
       clerkSecretKey: process.env.CLERK_SECRET_KEY,

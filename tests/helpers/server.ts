@@ -1,12 +1,11 @@
 import { vi } from 'vitest'
 import { withDatabaseErrorHandling } from '../../src/server/utils/database'
-import { requireDbUser } from '../../src/server/utils/user'
+import { requireDbUser, toCurrentUser } from '../../src/server/utils/user'
 import {
   LOCATION_DETAIL_INCLUDE,
   LOCATION_LIST_INCLUDE,
   withAverageRating,
 } from '../../src/server/utils/location'
-import { toCurrentUser } from '../../src/server/utils/current-user'
 import {
   enforcePeopleSearchLimit,
   throwRateLimited,
@@ -52,6 +51,7 @@ export function setupServerMocks() {
     $queryRaw: vi.fn(),
   }
 
+  const useRuntimeConfig = vi.fn().mockReturnValue({ public: { cloudinaryCloudName: 'demo' } })
   const requireAuth = vi.fn()
   const getQuery = vi.fn().mockReturnValue({})
   const readBody = vi.fn().mockResolvedValue({})
@@ -62,6 +62,7 @@ export function setupServerMocks() {
 
   vi.stubGlobal('prisma', prisma)
   vi.stubGlobal('requireAuth', requireAuth)
+  vi.stubGlobal('useRuntimeConfig', useRuntimeConfig)
   vi.stubGlobal('getQuery', getQuery)
   vi.stubGlobal('readBody', readBody)
   vi.stubGlobal('getRouterParam', getRouterParam)
@@ -85,6 +86,7 @@ export function setupServerMocks() {
   return {
     prisma,
     requireAuth,
+    useRuntimeConfig,
     getQuery,
     readBody,
     getRouterParam,

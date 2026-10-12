@@ -116,8 +116,8 @@
           >
             <div class="flex items-start gap-4">
               <img
-                v-if="person.avatarUrl"
-                :src="person.avatarUrl"
+                v-if="avatarFor(person)"
+                :src="avatarFor(person) ?? undefined"
                 :alt="person.username || 'User'"
                 class="h-14 w-14 rounded-full border border-gray-200 object-cover"
               />
@@ -176,6 +176,11 @@ import Select from '~/components/ui/Select.vue'
 import LoadingSpinner from '~/components/ui/LoadingSpinner.vue'
 
 const { isSignedIn, isLoaded } = useAuth()
+
+/** Uploaded profile photo (square crop), else the Clerk avatar */
+function avatarFor(person: PublicPerson) {
+  return getAvatarUrl(person, 112)
+}
 const { loading, error, needsLocation, needsOptIn, searchPeople } = usePeople()
 
 const radiusOptions = PEOPLE_RADII_KM.map((km) => ({ value: km, label: `${km} km` }))

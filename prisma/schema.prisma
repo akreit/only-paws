@@ -34,11 +34,17 @@ model User {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  // Profile enhancements (#53)
+  instagramHandle      String?
+  profilePhotoUrl      String?
+  profilePhotoPublicId String?
+
   locations Location[]
   reviews   Review[]
   photos    Photo[]
   comments  Comment[]
   favorites Favorite[]
+  gallery   UserPhoto[]
 
   @@index([discoverable, approxLatitude, approxLongitude])
 }
@@ -110,6 +116,20 @@ model Photo {
 
   @@index([locationId])
   @@index([uploaderId])
+}
+
+model UserPhoto {
+  id       String @id @default(cuid())
+  url      String
+  publicId String
+  position Int    @default(0)
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
 }
 
 model Comment {

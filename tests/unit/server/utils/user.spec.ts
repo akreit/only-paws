@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { setupServerMocks, createMockEvent } from '../../../helpers/server'
+import { PUBLIC_USER_SELECT } from '#server/utils/public-user'
 import { requireDbUser } from '#server/utils/user'
 
 const mocks = setupServerMocks()
@@ -51,5 +52,12 @@ describe('requireDbUser', () => {
     await expect(requireDbUser(createMockEvent() as never)).rejects.toMatchObject({
       statusCode: 503,
     })
+  })
+})
+
+describe('PUBLIC_USER_SELECT', () => {
+  it('never exposes email or clerkUserId', () => {
+    expect(Object.keys(PUBLIC_USER_SELECT)).not.toContain('email')
+    expect(Object.keys(PUBLIC_USER_SELECT)).not.toContain('clerkUserId')
   })
 })

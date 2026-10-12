@@ -1,15 +1,16 @@
 /**
- * Minimal fields of a user that may be shown to others wherever a user is embedded
- * (review authors, photo uploaders, commenters). Never add email, clerkUserId, location
- * or profile details here: those users may not have opted in to "Meet people".
+ * The only user fields that may appear on public data (review authors, photo uploaders,
+ * commenters). Always use this instead of `include: { author: true }`, which would leak
+ * `email` and `clerkUserId`.
  */
 export const PUBLIC_USER_SELECT = {
   id: true,
   username: true,
   avatarUrl: true,
+  profilePhotoUrl: true,
 } as const
 
-/** Profile fields shown on "Meet people" cards; only for discoverable users (GET /api/people). */
+/** Public fields plus the profile details shown on a people card. Never includes contact info. */
 export const PEOPLE_CARD_SELECT = {
   ...PUBLIC_USER_SELECT,
   bio: true,

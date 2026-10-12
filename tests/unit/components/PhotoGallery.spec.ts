@@ -1,3 +1,4 @@
+import { getAvatarUrl } from '#shared/utils/profile-photo'
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { ref } from 'vue'
 import { mount } from '@vue/test-utils'
@@ -32,6 +33,7 @@ async function mountGallery() {
 describe('PhotoGallery', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
+    vi.stubGlobal('getAvatarUrl', getAvatarUrl)
     vi.stubGlobal('ref', ref)
     vi.stubGlobal('useAuth', () => ({ isSignedIn: ref(true) }))
     // Clerk's id must not be what decides ownership

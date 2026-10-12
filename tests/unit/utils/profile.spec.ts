@@ -102,3 +102,14 @@ describe('validateProfileUpdate', () => {
     expect(result.data).toEqual({ bio: 'hi' })
   })
 })
+
+describe('validateProfileUpdate instagramHandle', () => {
+  it('normalises, clears and rejects', () => {
+    expect(validateProfileUpdate({ instagramHandle: '@Rex' }).data.instagramHandle).toBe('rex')
+    expect(validateProfileUpdate({ instagramHandle: '' }).data.instagramHandle).toBeNull()
+    expect(validateProfileUpdate({ instagramHandle: null }).data.instagramHandle).toBeNull()
+    const bad = validateProfileUpdate({ instagramHandle: 'a..b' })
+    expect(bad.valid).toBe(false)
+    expect(bad.errors[0].field).toBe('instagramHandle')
+  })
+})

@@ -76,6 +76,28 @@ describe('people page', () => {
     expect(wrapper.text()).not.toContain('Load more')
   })
 
+  it('shows the profile photo, falling back to the Clerk avatar', async () => {
+    searchPeople.mockResolvedValue(
+      response({
+        people: [
+          {
+            ...person,
+            id: 'p-photo',
+            profilePhotoUrl: 'https://res.cloudinary.com/demo/image/upload/v1/me.jpg',
+          },
+          { ...person, id: 'p-avatar', avatarUrl: 'https://img.clerk.com/a.png' },
+        ],
+        total: 2,
+      })
+    )
+    const wrapper = mountPage()
+    await flushPromises()
+
+    const images = wrapper.findAll('[data-testid="person-card"] img')
+    expect(images[0]!.attributes('src')).toContain('/image/upload/c_fill')
+    expect(images[1]!.attributes('src')).toBe('https://img.clerk.com/a.png')
+  })
+
   it('shows the empty state when nobody matches', async () => {
     searchPeople.mockResolvedValue(response({ people: [], total: 0 }))
     const wrapper = mountPage()

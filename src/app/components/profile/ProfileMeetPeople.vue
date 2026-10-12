@@ -34,20 +34,31 @@
       <template v-else>No approximate location set yet.</template>
     </p>
 
-    <p v-if="!profile?.discoverable" class="mb-2 text-sm text-gray-500">
-      Choosing a location below also turns on Meet people.
+    <p
+      v-if="!profile?.discoverable"
+      class="mb-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900"
+      data-testid="opt-in-notice"
+    >
+      Meet people is off. Setting a location below turns it on, so people nearby can find you.
     </p>
     <div class="flex flex-wrap gap-2">
-      <Button variant="outline" size="sm" :loading="locating" @click="useCurrentLocation">
-        Use my current location
+      <Button
+        variant="outline"
+        size="sm"
+        :loading="locating"
+        data-testid="use-current-location"
+        @click="useCurrentLocation"
+      >
+        {{ currentLocationLabel }}
       </Button>
       <Button
         variant="outline"
         size="sm"
         :disabled="!profile?.homeCity || locating"
+        data-testid="use-home-city"
         @click="useHomeCity"
       >
-        Use my home city
+        {{ homeCityLabel }}
       </Button>
     </div>
     <p v-if="peopleError" class="mt-2 text-sm text-red-600">{{ peopleError }}</p>
@@ -55,16 +66,22 @@
 </template>
 
 <script setup lang="ts">
-import { formatRelativeTime } from '~/utils/formatters'
-import Button from '~/components/ui/Button.vue'
-import { useProfile } from '~/composables/useProfile'
-
 const { profile } = useProfile()
 const { saving: savingPeople, cooldownMessage, updatePeopleSettings } = usePeople()
 const { geocodeAddress } = useMap()
 
 const locating = ref(false)
 const peopleError = ref('')
+
+// Choosing a location while opted out also opts in, so the buttons say so explicitly
+const currentLocationLabel = computed(() =>
+  profile.value?.discoverable
+    ? 'Use my current location'
+    : 'Turn on Meet people and use my current location'
+)
+const homeCityLabel = computed(() =>
+  profile.value?.discoverable ? 'Use my home city' : 'Turn on Meet people and use my home city'
+)
 
 const approxUpdatedLabel = computed(() => {
   const updatedAt = profile.value?.approxLocationUpdatedAt

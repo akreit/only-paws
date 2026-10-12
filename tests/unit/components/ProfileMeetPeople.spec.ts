@@ -1,22 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { computed, reactive, ref, watch } from 'vue'
 import { flushPromises, mount } from '@vue/test-utils'
+import Button from '~/components/ui/Button.vue'
 import ProfileMeetPeople from '~/components/profile/ProfileMeetPeople.vue'
+import { formatRelativeTime } from '~/utils/formatters'
 
 const updatePeopleSettings = vi.fn()
 const geocodeAddress = vi.fn()
 const cooldownMessage = ref('')
 const profile = ref<Record<string, unknown> | null>(null)
 
-// The component imports this composable explicitly, so a global stub would not reach it
-vi.mock('~/composables/useProfile', () => ({
-  useProfile: () => ({
-    profile,
-  }),
-}))
-
 function mountPage() {
-  return mount(ProfileMeetPeople)
+  return mount(ProfileMeetPeople, { global: { components: { Button } } })
 }
 
 describe('ProfileMeetPeople', () => {
@@ -30,6 +25,8 @@ describe('ProfileMeetPeople', () => {
     vi.stubGlobal('reactive', reactive)
     vi.stubGlobal('watch', watch)
     vi.stubGlobal('useHead', vi.fn())
+    vi.stubGlobal('useProfile', () => ({ profile }))
+    vi.stubGlobal('formatRelativeTime', formatRelativeTime)
     vi.stubGlobal('useMap', () => ({ geocodeAddress }))
     vi.stubGlobal('usePeople', () => ({
       saving: ref(false),
@@ -66,6 +63,47 @@ describe('ProfileMeetPeople', () => {
     expect(
       (wrapper.find('[data-testid="discoverable-toggle"]').element as HTMLInputElement).checked
     ).toBe(true)
+  })
+
+  it('spells out that a location turns Meet people on while it is off', async () => {
+    const getCurrentPosition = vi.fn((ok) => ok({ coords: { latitude: 52.52, longitude: 13.4 } }))
+    vi.stubGlobal('navigator', { geolocation: { getCurrentPosition } })
+    const wrapper = mountPage()
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="opt-in-notice"]').exists()).toBe(true)
+    const current = wrapper.find('[data-testid="use-current-location"]')
+    expect(current.text()).toBe('Turn on Meet people and use my current location')
+    expect(wrapper.find('[data-testid="use-home-city"]').text()).toBe(
+      'Turn on Meet people and use my home city'
+    )
+
+    await current.trigger('click')
+    await flushPromises()
+
+    expect(updatePeopleSettings).toHaveBeenCalledWith({
+      discoverable: true,
+      latitude: 52.52,
+      longitude: 13.4,
+    })
+  })
+
+  it('uses plain labels and no notice while discoverable', async () => {
+    profile.value = { discoverable: true, hasApproxLocation: true, homeCity: 'Berlin' }
+    const getCurrentPosition = vi.fn((ok) => ok({ coords: { latitude: 52.52, longitude: 13.4 } }))
+    vi.stubGlobal('navigator', { geolocation: { getCurrentPosition } })
+    const wrapper = mountPage()
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="opt-in-notice"]').exists()).toBe(false)
+    const current = wrapper.find('[data-testid="use-current-location"]')
+    expect(current.text()).toBe('Use my current location')
+    expect(wrapper.find('[data-testid="use-home-city"]').text()).toBe('Use my home city')
+
+    await current.trigger('click')
+    await flushPromises()
+
+    expect(updatePeopleSettings).toHaveBeenCalledWith({ latitude: 52.52, longitude: 13.4 })
   })
 
   it('saves the discoverable toggle', async () => {

@@ -58,18 +58,6 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // The timestamp survives opting out, so opt-out/opt-in cannot reset the cooldown
-    if (me.approxLocationUpdatedAt) {
-      const retryAt = new Date(me.approxLocationUpdatedAt.getTime() + LOCATION_COOLDOWN_MS)
-      if (retryAt.getTime() > Date.now()) {
-        throwRateLimited(
-          event,
-          `You can change your location again after ${retryAt.toISOString()}`,
-          retryAt
-        )
-      }
-    }
-
     // The jitter is created once and then reused forever, so repeated sets cannot be averaged
     const jitter =
       me.approxJitterLat != null && me.approxJitterLng != null
@@ -102,9 +90,44 @@ export default defineEventHandler(async (event) => {
     data.discoverable = true
   }
 
-  const updated = Object.keys(data).length
-    ? await withDatabaseErrorHandling(() => prisma.user.update({ where: { id: me.id }, data }))
-    : me
+  let updated = me
+  if (hasCoordinates) {
+    // Cooldown, checked and applied in one statement so concurrent requests can't both pass.
+    // The timestamp survives opting out, so opting out and back in can't reset it.
+    const now = data.approxLocationUpdatedAt as Date
+    const result = await withDatabaseErrorHandling(() =>
+      prisma.user.updateMany({
+        where: {
+          id: me.id,
+          OR: [
+            { approxLocationUpdatedAt: null },
+            { approxLocationUpdatedAt: { lte: new Date(now.getTime() - LOCATION_COOLDOWN_MS) } },
+          ],
+        },
+        data,
+      })
+    )
+    if (result.count === 0) {
+      const current = await withDatabaseErrorHandling(() =>
+        prisma.user.findUnique({
+          where: { id: me.id },
+          select: { approxLocationUpdatedAt: true },
+        })
+      )
+      const changedAt = current?.approxLocationUpdatedAt ?? now
+      const retryAt = new Date(changedAt.getTime() + LOCATION_COOLDOWN_MS)
+      throwRateLimited(
+        event,
+        `You can change your location again after ${retryAt.toISOString()}`,
+        retryAt
+      )
+    }
+    updated = { ...me, ...data } as typeof me
+  } else if (Object.keys(data).length) {
+    updated = await withDatabaseErrorHandling(() =>
+      prisma.user.update({ where: { id: me.id }, data })
+    )
+  }
 
   return {
     discoverable: updated.discoverable,

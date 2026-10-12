@@ -25,12 +25,14 @@ describe('PATCH /api/users/people-settings', () => {
     mocks.requireAuth.mockResolvedValue('clerk_123')
     mocks.prisma.user.findUnique.mockResolvedValue(stored)
     mocks.prisma.user.update.mockImplementation(async ({ data }) => ({ ...stored, ...data }))
+    mocks.prisma.user.updateMany.mockResolvedValue({ count: 1 })
   })
 
   it('rejects unauthenticated requests', async () => {
     mocks.requireAuth.mockRejectedValue(new Error('Unauthorized'))
     await expect(handler(createMockEvent())).rejects.toThrow('Unauthorized')
     expect(mocks.prisma.user.update).not.toHaveBeenCalled()
+    expect(mocks.prisma.user.updateMany).not.toHaveBeenCalled()
   })
 
   it.each([
@@ -47,6 +49,7 @@ describe('PATCH /api/users/people-settings', () => {
     mocks.readBody.mockResolvedValue(body)
     await expect(handler(createMockEvent())).rejects.toMatchObject({ statusCode: 400 })
     expect(mocks.prisma.user.update).not.toHaveBeenCalled()
+    expect(mocks.prisma.user.updateMany).not.toHaveBeenCalled()
   })
 
   it('returns 400 when turning discoverable on without any location', async () => {
@@ -70,6 +73,7 @@ describe('PATCH /api/users/people-settings', () => {
     mocks.readBody.mockResolvedValue({ discoverable: false, latitude: 52.5, longitude: 13.4 })
     await expect(handler(createMockEvent())).rejects.toMatchObject({ statusCode: 400 })
     expect(mocks.prisma.user.update).not.toHaveBeenCalled()
+    expect(mocks.prisma.user.updateMany).not.toHaveBeenCalled()
   })
 
   it('stores a jittered cell-rounded location when opting in with coordinates', async () => {
@@ -82,8 +86,9 @@ describe('PATCH /api/users/people-settings', () => {
 
     const result = await handler(createMockEvent())
 
-    const { data, where } = mocks.prisma.user.update.mock.calls[0]![0]
-    expect(where).toEqual({ id: 'me' })
+    expect(mocks.prisma.user.update).not.toHaveBeenCalled()
+    const { data, where } = mocks.prisma.user.updateMany.mock.calls[0]![0]
+    expect(where.id).toBe('me')
     expect(data.discoverable).toBe(true)
     expect(data.approxLocationUpdatedAt).toBeInstanceOf(Date)
     expect(Math.abs(data.approxJitterLat)).toBeLessThanOrEqual(0.005)
@@ -116,8 +121,8 @@ describe('PATCH /api/users/people-settings', () => {
 
     await handler(createMockEvent())
 
-    expect(mocks.prisma.user.update).toHaveBeenCalledWith({
-      where: { id: 'me' },
+    expect(mocks.prisma.user.updateMany).toHaveBeenCalledWith({
+      where: expect.objectContaining({ id: 'me' }),
       data: {
         approxLatitude: 10.003,
         approxLongitude: 20.0019,
@@ -133,7 +138,7 @@ describe('PATCH /api/users/people-settings', () => {
     const seen = new Set<number>()
     for (let i = 0; i < 20; i++) {
       await handler(createMockEvent())
-      const { data } = mocks.prisma.user.update.mock.calls[i]![0]
+      const { data } = mocks.prisma.user.updateMany.mock.calls[i]![0]
       expect(Math.abs(data.approxJitterLat)).toBeLessThanOrEqual(0.005)
       expect(Math.abs(data.approxJitterLng)).toBeLessThanOrEqual(0.005)
       seen.add(data.approxJitterLat)
@@ -142,14 +147,29 @@ describe('PATCH /api/users/people-settings', () => {
   })
 
   describe('location cooldown', () => {
-    it('answers 429 with Retry-After and retryAt within 6 hours and does not update', async () => {
+    it('applies the cooldown inside the write condition', async () => {
+      mocks.readBody.mockResolvedValue({ latitude: 5, longitude: 5 })
+      const before = Date.now()
+
+      await handler(createMockEvent())
+
+      const { where } = mocks.prisma.user.updateMany.mock.calls[0]![0]
+      expect(where.id).toBe('me')
+      expect(where.OR).toHaveLength(2)
+      expect(where.OR[0]).toEqual({ approxLocationUpdatedAt: null })
+      const lte: Date = where.OR[1].approxLocationUpdatedAt.lte
+      expect(lte).toBeInstanceOf(Date)
+      expect(lte.getTime()).toBeGreaterThanOrEqual(before - 6 * HOUR)
+      expect(lte.getTime()).toBeLessThanOrEqual(Date.now() - 6 * HOUR)
+      expect(mocks.prisma.user.findUnique).toHaveBeenCalledTimes(1) // only requireDbUser
+    })
+
+    it('answers 429 with Retry-After and retryAt when no row was updated, without update', async () => {
       const updatedAt = new Date(Date.now() - 2 * HOUR)
-      mocks.prisma.user.findUnique.mockResolvedValue({
-        ...stored,
-        approxLatitude: 1,
-        approxLongitude: 2,
-        approxLocationUpdatedAt: updatedAt,
-      })
+      mocks.prisma.user.updateMany.mockResolvedValue({ count: 0 })
+      mocks.prisma.user.findUnique
+        .mockResolvedValueOnce({ ...stored, approxLatitude: 1, approxLongitude: 2 })
+        .mockResolvedValueOnce({ approxLocationUpdatedAt: updatedAt })
       mocks.readBody.mockResolvedValue({ latitude: 1, longitude: 2 })
 
       const retryAt = new Date(updatedAt.getTime() + 6 * HOUR).toISOString()
@@ -157,6 +177,10 @@ describe('PATCH /api/users/people-settings', () => {
         statusCode: 429,
         message: `You can change your location again after ${retryAt}`,
         data: { retryAt },
+      })
+      expect(mocks.prisma.user.findUnique).toHaveBeenLastCalledWith({
+        where: { id: 'me' },
+        select: { approxLocationUpdatedAt: true },
       })
       expect(mocks.setResponseHeader).toHaveBeenCalledWith(
         expect.anything(),
@@ -169,6 +193,43 @@ describe('PATCH /api/users/people-settings', () => {
       expect(mocks.prisma.user.update).not.toHaveBeenCalled()
     })
 
+    it('falls back to a full cooldown when the stored timestamp cannot be read', async () => {
+      mocks.prisma.user.updateMany.mockResolvedValue({ count: 0 })
+      mocks.prisma.user.findUnique.mockResolvedValueOnce(stored).mockResolvedValueOnce(null)
+      mocks.readBody.mockResolvedValue({ latitude: 1, longitude: 2 })
+
+      await expect(handler(createMockEvent())).rejects.toMatchObject({ statusCode: 429 })
+      const seconds = mocks.setResponseHeader.mock.calls[0]![2]
+      expect(seconds).toBeGreaterThan(5.9 * 3600)
+    })
+
+    it('lets exactly one of two concurrent requests through', async () => {
+      const updatedAt = new Date(Date.now() - 1000)
+      mocks.prisma.user.updateMany
+        .mockResolvedValueOnce({ count: 1 })
+        .mockResolvedValueOnce({ count: 0 })
+      mocks.prisma.user.findUnique
+        .mockResolvedValueOnce(stored)
+        .mockResolvedValueOnce(stored)
+        .mockResolvedValue({ approxLocationUpdatedAt: updatedAt })
+      mocks.readBody.mockResolvedValue({ latitude: 5, longitude: 5 })
+
+      const results = await Promise.allSettled([
+        handler(createMockEvent()),
+        handler(createMockEvent()),
+      ])
+
+      expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1)
+      const rejected = results.filter((r) => r.status === 'rejected') as PromiseRejectedResult[]
+      expect(rejected).toHaveLength(1)
+      expect(rejected[0]!.reason).toMatchObject({
+        statusCode: 429,
+        data: { retryAt: new Date(updatedAt.getTime() + 6 * HOUR).toISOString() },
+      })
+      expect(mocks.prisma.user.updateMany).toHaveBeenCalledTimes(2)
+      expect(mocks.prisma.user.update).not.toHaveBeenCalled()
+    })
+
     it('allows a change after 6 hours', async () => {
       mocks.prisma.user.findUnique.mockResolvedValue({
         ...stored,
@@ -178,15 +239,17 @@ describe('PATCH /api/users/people-settings', () => {
       })
       mocks.readBody.mockResolvedValue({ latitude: 5, longitude: 5 })
 
-      await handler(createMockEvent())
+      const result = await handler(createMockEvent())
 
-      expect(mocks.prisma.user.update).toHaveBeenCalledTimes(1)
+      expect(mocks.prisma.user.updateMany).toHaveBeenCalledTimes(1)
+      expect(result.hasApproxLocation).toBe(true)
     })
 
     it('allows the first location (no timestamp)', async () => {
       mocks.readBody.mockResolvedValue({ latitude: 5, longitude: 5 })
       await handler(createMockEvent())
-      expect(mocks.prisma.user.update).toHaveBeenCalledTimes(1)
+      expect(mocks.prisma.user.updateMany).toHaveBeenCalledTimes(1)
+      expect(mocks.prisma.user.update).not.toHaveBeenCalled()
     })
 
     it('does not let opt-out followed by opt-in reset the cooldown', async () => {
@@ -209,13 +272,17 @@ describe('PATCH /api/users/people-settings', () => {
         where: { id: 'me' },
         data: { discoverable: false, approxLatitude: null, approxLongitude: null },
       })
+      expect(mocks.prisma.user.updateMany).not.toHaveBeenCalled()
 
-      mocks.prisma.user.findUnique.mockResolvedValue({
-        ...row,
-        discoverable: false,
-        approxLatitude: null,
-        approxLongitude: null,
-      })
+      mocks.prisma.user.updateMany.mockResolvedValue({ count: 0 })
+      mocks.prisma.user.findUnique
+        .mockResolvedValueOnce({
+          ...row,
+          discoverable: false,
+          approxLatitude: null,
+          approxLongitude: null,
+        })
+        .mockResolvedValueOnce({ approxLocationUpdatedAt: updatedAt })
       mocks.readBody.mockResolvedValue({ discoverable: true, latitude: 3, longitude: 3 })
       await expect(handler(createMockEvent())).rejects.toMatchObject({ statusCode: 429 })
       expect(mocks.prisma.user.update).toHaveBeenCalledTimes(1)
